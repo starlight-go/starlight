@@ -1,4 +1,4 @@
-# Skyhook
+# Skyhook [![GoDoc](https://godoc.org/github.com/natefinch/skyhook?status.svg)](https://godoc.org/github.com/natefinch/skyhook)
 
 
 Skyhook is a wrapper for google's skylark embedded python-like language.
