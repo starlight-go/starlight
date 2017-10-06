@@ -1,0 +1,2 @@
+# this file shouldn't get run because it's in a later plugin dir
+output = input + " from later dir"
