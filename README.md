@@ -1,9 +1,11 @@
 # Skyhook [![GoDoc](https://godoc.org/github.com/natefinch/skyhook?status.svg)](https://godoc.org/github.com/natefinch/skyhook)
 
 
-Skyhook is a wrapper for google's skylark embedded python-like language.
-Skyhook is intended to give you an easier-to-use interface for running skylark
-scripts.  
+Skyhook is a wrapper for google's [skylark](https://github.com/google/skylark)
+embedded python-like language. Skyhook is intended to give you an easier-to-use
+interface for running skylark scripts directly from your Go programs.  Skylark
+is a dialect of python, and has a Go native interpreter, so you can let your
+users extend your application without any external requirements.
 
 ## Demo
 
