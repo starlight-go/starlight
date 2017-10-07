@@ -10,7 +10,16 @@ import (
 	"reflect"
 
 	"github.com/google/skylark"
+	"github.com/google/skylark/resolve"
 )
+
+func init() {
+	resolve.AllowNestedDef = true // allow def statements within function bodies
+	resolve.AllowLambda = true    // allow lambda expressions
+	resolve.AllowFloat = true     // allow floating point literals, the 'float' built-in, and x / y
+	resolve.AllowFreeze = true    // allow the 'freeze' built-in
+	resolve.AllowSet = true       // allow the 'set' built-in
+}
 
 // Skyhook is a script/plugin runner.
 type Skyhook struct {

@@ -140,15 +140,16 @@ func("a", 1, foo=1, foo=2)
 }
 
 func TestMakeSkyFn(t *testing.T) {
-	fn := func(s string, i int64) (int, error) {
-		fmt.Println(s, i)
-		return 5, nil
+	fn := func(s string, i int64, b bool, f float64) (int, string, error) {
+		fmt.Println(s, i, b, f)
+		return 5, "hi!", nil
 	}
 
 	skyf := MakeSkyFn("boo", fn)
 	// Mental note: skylark numbers pop out as int64s
 	data := []byte(`
-a = boo("a", 1)
+a = boo("a", 1, True, 0.1)
+b = 0.1
 	`)
 
 	thread := &skylark.Thread{
@@ -162,7 +163,34 @@ a = boo("a", 1)
 		t.Fatal(err)
 	}
 	v := FromStringDict(globals)
-	if v["a"] != int64(5) {
-		t.Fatalf("expected a = 5, but got %#v", v)
+	if !reflect.DeepEqual(v["a"], []interface{}{int64(5), "hi!"}) {
+		t.Fatalf(`expected a = [5, "hi"], but got %#v`, v)
+	}
+}
+
+func TestMakeSkyFnOneRet(t *testing.T) {
+	fn := func(s string) string {
+		return "hi " + s
+	}
+
+	skyf := MakeSkyFn("boo", fn)
+	// Mental note: skylark numbers pop out as int64s
+	data := []byte(`
+a = boo("skyhook")
+`)
+
+	thread := &skylark.Thread{
+		Print: func(_ *skylark.Thread, msg string) { fmt.Println(msg) },
+	}
+
+	globals := map[string]skylark.Value{
+		"boo": skyf,
+	}
+	if err := skylark.ExecFile(thread, "foo.sky", data, globals); err != nil {
+		t.Fatal(err)
+	}
+	v := FromStringDict(globals)
+	if v["a"] != "hi skyhook" {
+		t.Fatalf(`expected a = "hi skyhook", but got %#v`, v["a"])
 	}
 }
