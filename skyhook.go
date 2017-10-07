@@ -287,3 +287,31 @@ func FromSet(s *skylark.Set) (map[interface{}]bool, error) {
 	}
 	return ret, nil
 }
+
+// Kwarg is a single instance of a python foo=bar style named argument.
+type Kwarg struct {
+	Name  string
+	Value interface{}
+}
+
+// FromKwargs converts a python style name=val, name2=val2 list of tuples into a
+// []Kwarg.  It is an error if any tuple is not exactly 2 values,
+// or if the first one is not a string.
+func FromKwargs(kwargs []skylark.Tuple) ([]Kwarg, error) {
+	args := make([]Kwarg, 0, len(kwargs))
+	for _, t := range kwargs {
+		tup, err := FromTuple(t)
+		if err != nil {
+			return nil, err
+		}
+		if len(tup) != 2 {
+			return nil, fmt.Errorf("kwarg tuple should have 2 vals, has %v", len(tup))
+		}
+		s, ok := tup[0].(string)
+		if !ok {
+			return nil, fmt.Errorf("expected name of kwarg to be string, but was %T (%#v)", tup[0], tup[0])
+		}
+		args = append(args, Kwarg{Name: s, Value: tup[1]})
+	}
+	return args, nil
+}
