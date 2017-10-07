@@ -138,3 +138,31 @@ func("a", 1, foo=1, foo=2)
 		t.Fatalf("expected kwargs %#v, but got %#v", expKwargs, gokwargs)
 	}
 }
+
+func TestMakeSkyFn(t *testing.T) {
+	fn := func(s string, i int64) (int, error) {
+		fmt.Println(s, i)
+		return 5, nil
+	}
+
+	skyf := MakeSkyFn("boo", fn)
+	// Mental note: skylark numbers pop out as int64s
+	data := []byte(`
+a = boo("a", 1)
+	`)
+
+	thread := &skylark.Thread{
+		Print: func(_ *skylark.Thread, msg string) { fmt.Println(msg) },
+	}
+
+	globals := map[string]skylark.Value{
+		"boo": skyf,
+	}
+	if err := skylark.ExecFile(thread, "foo.sky", data, globals); err != nil {
+		t.Fatal(err)
+	}
+	v := FromStringDict(globals)
+	if v["a"] != int64(5) {
+		t.Fatalf("expected a = 5, but got %#v", v)
+	}
+}

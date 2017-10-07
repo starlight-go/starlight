@@ -64,6 +64,10 @@ skylark scripts work in reverse much the same way.  You may also pass in
 skylark.Value types directly, in which case they will be passed to the script
 as-is.
 
-## Todo
+## Functions
 
-Passing in Go functions.
+You can pass go functions that the script can call by passing your function into
+MakeSkyFn, which will return a skylark.Builtin which you can pass into globals
+with a name, then the script can call that function by that name.  Some caveats:
+skylark ints always come in as int64, not "int".  The supported types are the
+same as ToValue.  Kwargs are currently ignored.

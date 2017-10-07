@@ -3,9 +3,11 @@
 package skyhook
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"reflect"
 
 	"github.com/google/skylark"
 )
@@ -314,4 +316,66 @@ func FromKwargs(kwargs []skylark.Tuple) ([]Kwarg, error) {
 		args = append(args, Kwarg{Name: s, Value: tup[1]})
 	}
 	return args, nil
+}
+
+var errType = reflect.TypeOf((*error)(nil)).Elem()
+
+// MakeSkyFn creates a wrapper around the given function that can be called from
+// a skylark script.  Argument support is the same as ToValue. If the last value
+// the function returns is an error, it will cause an error to be returned from
+// the skylark function.  If there are no other errors, the function will return
+// None.  If there's exactly one other value, the function will return the
+// skylark equivalent of that value.  If there is more than one return value,
+// they'll be returned as a tuple.  MakeSkyFn will panic if you pass it
+// something other than a function.
+func MakeSkyFn(name string, gofn interface{}) *skylark.Builtin {
+	t := reflect.TypeOf(gofn)
+	if t.Kind() != reflect.Func {
+		panic(errors.New("fn is not a function"))
+	}
+
+	return skylark.NewBuiltin(name, func(thread *skylark.Thread, fn *skylark.Builtin, args skylark.Tuple, kwargs []skylark.Tuple) (skylark.Value, error) {
+		if len(args) != t.NumIn() {
+			return skylark.None, fmt.Errorf("expected %d args but got %d", t.NumIn(), len(args))
+		}
+		v := reflect.ValueOf(gofn)
+		vals, err := FromTuple(args)
+		if err != nil {
+			return skylark.None, err
+		}
+		rvs := make([]reflect.Value, 0, len(vals))
+		for _, v := range vals {
+			rvs = append(rvs, reflect.ValueOf(v))
+		}
+		out := v.Call(rvs)
+		fmt.Println(out)
+		if len(out) == 0 {
+			return skylark.None, nil
+		}
+		last := out[len(out)-1]
+		err = nil
+		if last.Type() == errType {
+			if v := last.Interface(); v != nil {
+				err = v.(error)
+			}
+			out = out[:len(out)-1]
+		}
+		if len(out) == 1 {
+			v, err2 := ToValue(out[0].Interface())
+			if err2 != nil {
+				return skylark.None, err2
+			}
+			return v, err
+		}
+		ifcs := make([]interface{}, 0, len(out))
+		// tuple-up multple values
+		for i := range out {
+			ifcs = append(ifcs, out[i].Interface())
+		}
+		tup, err2 := MakeTuple(ifcs)
+		if err != nil {
+			return skylark.None, err2
+		}
+		return tup, err
+	})
 }
