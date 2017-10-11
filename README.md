@@ -1,5 +1,6 @@
 # Skyhook [![GoDoc](https://godoc.org/github.com/hippogryph/skyhook?status.svg)](https://godoc.org/github.com/hippogryph/skyhook)
 
+### (recently moved from github.com/natefinch/skyhook)
 
 Skyhook is a wrapper for google's [skylark](https://github.com/google/skylark)
 embedded python-like language. Skyhook is intended to give you an easier-to-use
@@ -10,7 +11,7 @@ users extend your application without any external requirements.
 ## Video Demo
 
 
-[![Skyhook Demo](https://img.youtube.com/vi/RM0L9-yugEw/maxresdefault.jpg)](https://www.youtube.com/watch?v=RM0L9-yugEw)
+[![Skyhook Demo](https://img.youtube.com/vi/y2QepLHHmsk/maxresdefault.jpg)](https://www.youtube.com/watch?v=y2QepLHHmsk)
 
 ## Text Demo
 
