@@ -1,4 +1,4 @@
-# Skyhook [![GoDoc](https://godoc.org/github.com/natefinch/skyhook?status.svg)](https://godoc.org/github.com/natefinch/skyhook)
+# Skyhook [![GoDoc](https://godoc.org/github.com/hippogryph/skyhook?status.svg)](https://godoc.org/github.com/hippogryph/skyhook)
 
 
 Skyhook is a wrapper for google's [skylark](https://github.com/google/skylark)
@@ -7,7 +7,12 @@ interface for running skylark scripts directly from your Go programs.  Skylark
 is a dialect of python, and has a Go native interpreter, so you can let your
 users extend your application without any external requirements.
 
-## Demo
+## Video Demo
+
+
+[![Skyhook Demo](https://img.youtube.com/vi/RM0L9-yugEw/maxresdefault.jpg)](https://www.youtube.com/watch?v=RM0L9-yugEw)
+
+## Text Demo
 
 Assume you have this file at plugins/foo.sky:
 
