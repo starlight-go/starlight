@@ -8,9 +8,11 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"reflect"
+	"sync"
 
 	"github.com/google/skylark"
 	"github.com/google/skylark/resolve"
+	"github.com/google/skylark/syntax"
 )
 
 func init() {
@@ -23,42 +25,92 @@ func init() {
 
 // Skyhook is a script/plugin runner.
 type Skyhook struct {
-	dirs []string
+	dirs     []string
+	readFile func(filename string) ([]byte, error)
+
+	mu      *sync.Mutex
+	plugins map[string]*syntax.File
+}
+
+func parseFile(name string, b []byte, dict skylark.StringDict) (*syntax.File, error) {
+	f, err := syntax.Parse(name, b)
+	if err != nil {
+		return nil, err
+	}
+
+	isPredeclaredGlobal := func(name string) bool { _, ok := dict[name]; return ok } // x, but not y
+	isBuiltin := func(name string) bool { return skylark.Universe[name] != nil }
+
+	if err := resolve.File(f, isPredeclaredGlobal, isBuiltin); err != nil {
+		return nil, err
+	}
+	return f, nil
+}
+
+func runFile(f *syntax.File, globals skylark.StringDict) (map[string]interface{}, error) {
+	thread := new(skylark.Thread)
+	fr := thread.Push(globals, len(f.Locals))
+	defer thread.Pop()
+	if err := fr.ExecStmts(f.Stmts); err != nil {
+		return nil, err
+	}
+	return FromStringDict(globals), nil
 }
 
 // New returns a Skyhook that looks in the given directories for plugin files to
 // run.  The directories are searched in order for files when Run is called.
-func New(dirs []string) Skyhook {
-	return Skyhook{dirs}
+func New(dirs []string) *Skyhook {
+	return &Skyhook{
+		dirs:     dirs,
+		plugins:  map[string]*syntax.File{},
+		readFile: ioutil.ReadFile,
+		mu:       &sync.Mutex{},
+	}
 }
 
-// Run looks for a file with the given filename, and runs it with the given args
+// Run looks for a file with the given filename, and runs it with the given globals
 // passed to the script's global namespace. The return value is all convertible
-// global variables from the script.
-func (s Skyhook) Run(filename string, args map[string]interface{}) (map[string]interface{}, error) {
+// global variables from the script, which may include the passed-in globals.
+func (s *Skyhook) Run(filename string, globals map[string]interface{}) (map[string]interface{}, error) {
+	dict, err := MakeStringDict(globals)
+	if err != nil {
+		return nil, err
+	}
+	s.mu.Lock()
+	if f, ok := s.plugins[filename]; ok {
+		s.mu.Unlock()
+		return runFile(f, dict)
+	}
+	s.mu.Unlock()
+
 	for _, d := range s.dirs {
-		b, err := ioutil.ReadFile(filepath.Join(d, filename))
+		b, err := s.readFile(filepath.Join(d, filename))
 		if err == nil {
-			return s.exec(filename, b, args)
+			f, err := parseFile(filename, b, dict)
+			if err != nil {
+				return nil, err
+			}
+			s.mu.Lock()
+			s.plugins[filename] = f
+			s.mu.Unlock()
+			return runFile(f, dict)
 		}
 	}
 	return nil, fmt.Errorf("cannot find plugin file %q in any plugin directoy", filename)
 }
 
-func (s Skyhook) exec(filename string, data []byte, args map[string]interface{}) (map[string]interface{}, error) {
-	thread := &skylark.Thread{
-		Print: func(_ *skylark.Thread, msg string) { fmt.Println(msg) },
-	}
-	globals, err := MakeStringDict(args)
-	if err != nil {
-		return nil, err
-	}
+// Reset clears all cached scripts.
+func (s *Skyhook) Reset() {
+	s.mu.Lock()
+	s.plugins = map[string]*syntax.File{}
+	s.mu.Unlock()
+}
 
-	if err := skylark.ExecFile(thread, filename, data, globals); err != nil {
-		return nil, err
-	}
-
-	return FromStringDict(globals), nil
+// Forget clears the cached script for the given filename.
+func (s *Skyhook) Forget(filename string) {
+	s.mu.Lock()
+	delete(s.plugins, filename)
+	s.mu.Unlock()
 }
 
 // ToValue attempts to convert the given value to a skylark.Value.  It supports
@@ -149,6 +201,12 @@ func FromValue(v skylark.Value) (interface{}, error) {
 func MakeStringDict(m map[string]interface{}) (skylark.StringDict, error) {
 	dict := make(skylark.StringDict, len(m))
 	for k, v := range m {
+		t := reflect.TypeOf(v)
+		if t.Kind() == reflect.Func {
+			dict[k] = MakeSkyFn(k, v)
+			continue
+		}
+
 		val, err := ToValue(v)
 		if err != nil {
 			return nil, err
@@ -357,7 +415,6 @@ func MakeSkyFn(name string, gofn interface{}) *skylark.Builtin {
 			rvs = append(rvs, reflect.ValueOf(v))
 		}
 		out := v.Call(rvs)
-		fmt.Println(out)
 		if len(out) == 0 {
 			return skylark.None, nil
 		}

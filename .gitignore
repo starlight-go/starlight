@@ -12,3 +12,12 @@
 
 # Project-local glide cache, RE: https://github.com/Masterminds/glide/issues/736
 .glide/
+
+# we don't check in vendor, the lock file is just there so others know what we've tested against.
+vendor
+
+# VScode
+.vscode
+
+# stupid osx
+.DS_Store

@@ -66,8 +66,16 @@ as-is.
 
 ## Functions
 
-You can pass go functions that the script can call by passing your function into
-MakeSkyFn, which will return a skylark.Builtin which you can pass into globals
-with a name, then the script can call that function by that name.  Some caveats:
-skylark ints always come in as int64, not "int".  The supported types are the
-same as ToValue.  Kwargs are currently ignored.
+You can pass go functions that the script can call by passing your function in
+with the rest of the globals. Some caveats: skylark ints always come in as
+int64, not "int".  The supported types are the same as ToValue.  Positional args
+are passed to your function and converted with FromValue. Kwargs passed from
+skylark are currently ignored.
+
+## Caching
+
+Since parsing scripts is non-zero work, skyhook caches the scripts it finds
+after the first time they get run, so that further runs of the script will not
+incur the disk read and parsing overhead. To make skyhook reparse a file
+(perhaps because it's changed) use the Forget method for the specific file, or
+Reset to remove all cached files.

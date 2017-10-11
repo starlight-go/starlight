@@ -9,17 +9,24 @@ import (
 )
 
 func TestConversion(t *testing.T) {
-	data := []byte(`
-output = input + " world"
-`)
+	data := []byte(`output = input + " world" + bang()`)
 
-	actual, err := Skyhook{}.exec("foo.sky", data, map[string]interface{}{"input": "hello"})
+	read := func(string) ([]byte, error) { return data, nil }
+
+	bang := func() string { return "!" }
+
+	s := New([]string{"bar"})
+	s.readFile = read
+	actual, err := s.Run("foo.sky", map[string]interface{}{
+		"input": "hello",
+		"bang":  bang,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	expected := map[string]interface{}{
 		"input":  "hello",
-		"output": "hello world",
+		"output": "hello world!",
 	}
 	if len(actual) != len(expected) {
 		t.Errorf("expected %d items, but got %d", len(expected), len(actual))
@@ -68,7 +75,11 @@ def foo():
 output = input + foo()
 `)
 
-	actual, err := Skyhook{}.exec("foo.sky", data, map[string]interface{}{"input": "hello"})
+	read := func(string) ([]byte, error) { return data, nil }
+
+	s := New([]string{"bar"})
+	s.readFile = read
+	actual, err := s.Run("foo.sky", map[string]interface{}{"input": "hello"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +152,6 @@ func("a", 1, foo=1, foo=2)
 
 func TestMakeSkyFn(t *testing.T) {
 	fn := func(s string, i int64, b bool, f float64) (int, string, error) {
-		fmt.Println(s, i, b, f)
 		return 5, "hi!", nil
 	}
 
@@ -193,4 +203,71 @@ a = boo("skyhook")
 	if v["a"] != "hi skyhook" {
 		t.Fatalf(`expected a = "hi skyhook", but got %#v`, v["a"])
 	}
+}
+
+func TestRerun(t *testing.T) {
+	data := []byte(`output = input + " world!"`)
+
+	read := func(string) ([]byte, error) { return data, nil }
+
+	s := New([]string{"bar"})
+	s.readFile = read
+	actual, err := s.Run("foo.sky", map[string]interface{}{
+		"input": "hello",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if actual["output"] != "hello world!" {
+		t.Fatalf(`expected "hello world!" but got %q`, actual["output"])
+	}
+
+	// change inputs but not script
+	actual, err = s.Run("foo.sky", map[string]interface{}{
+		"input": "goodbye",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if actual["output"] != "goodbye world!" {
+		t.Fatalf(`expected "goodbye world!" but got %q`, actual["output"])
+	}
+
+	// change script, shouldn't change output sicne we cached it
+	data = []byte(`output = "hi!"`)
+	actual, err = s.Run("foo.sky", map[string]interface{}{
+		"input": "goodbye",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if actual["output"] != "goodbye world!" {
+		t.Fatalf(`expected "goodbye world!" but got %q`, actual["output"])
+	}
+
+	// remove script, should change output
+	s.Forget("foo.sky")
+	actual, err = s.Run("foo.sky", map[string]interface{}{
+		"input": "goodbye",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if actual["output"] != "hi!" {
+		t.Fatalf(`expected "hi!" but got %q`, actual["output"])
+	}
+
+	// reset all, should change output
+	s.Reset()
+	data = []byte(`output = "bye!"`)
+	actual, err = s.Run("foo.sky", map[string]interface{}{
+		"input": "goodbye",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if actual["output"] != "bye!" {
+		t.Fatalf(`expected "bye!" but got %q`, actual["output"])
+	}
+
 }
