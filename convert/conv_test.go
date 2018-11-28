@@ -57,12 +57,12 @@ func("a", 1, foo=1, foo=2)
 	}
 }
 
-func TestMakeSkyFn(t *testing.T) {
+func TestMakeStarFn(t *testing.T) {
 	fn := func(s string, i int64, b bool, f float64) (int, string, error) {
 		return 5, "hi!", nil
 	}
 
-	skyf := MakeSkyFn("boo", fn)
+	skyf := MakeStarFn("boo", fn)
 	// Mental note: starlark numbers pop out as int64s
 	data := []byte(`
 a = boo("a", 1, True, 0.1)
@@ -86,12 +86,12 @@ b = 0.1
 	}
 }
 
-func TestMakeSkyFnOneRet(t *testing.T) {
+func TestMakeStarFnOneRet(t *testing.T) {
 	fn := func(s string) string {
 		return "hi " + s
 	}
 
-	skyf := MakeSkyFn("boo", fn)
+	skyf := MakeStarFn("boo", fn)
 	// Mental note: starlark numbers pop out as int64s
 	data := []byte(`
 a = boo("skyhook")

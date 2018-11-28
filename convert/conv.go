@@ -107,7 +107,7 @@ func MakeStringDict(m map[string]interface{}) (starlark.StringDict, error) {
 	for k, v := range m {
 		t := reflect.TypeOf(v)
 		if t.Kind() == reflect.Func {
-			dict[k] = MakeSkyFn(k, v)
+			dict[k] = MakeStarFn(k, v)
 			continue
 		}
 
@@ -291,15 +291,15 @@ func FromKwargs(kwargs []starlark.Tuple) ([]Kwarg, error) {
 
 var errType = reflect.TypeOf((*error)(nil)).Elem()
 
-// MakeSkyFn creates a wrapper around the given function that can be called from
+// MakeStarFn creates a wrapper around the given function that can be called from
 // a starlark script.  Argument support is the same as ToValue. If the last value
 // the function returns is an error, it will cause an error to be returned from
 // the starlark function.  If there are no other errors, the function will return
 // None.  If there's exactly one other value, the function will return the
 // starlark equivalent of that value.  If there is more than one return value,
-// they'll be returned as a tuple.  MakeSkyFn will panic if you pass it
+// they'll be returned as a tuple.  MakeStarFn will panic if you pass it
 // something other than a function.
-func MakeSkyFn(name string, gofn interface{}) *starlark.Builtin {
+func MakeStarFn(name string, gofn interface{}) *starlark.Builtin {
 	t := reflect.TypeOf(gofn)
 	if t.Kind() != reflect.Func {
 		panic(errors.New("fn is not a function"))
