@@ -5,39 +5,40 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/google/skylark"
+	"go.starlark.net/starlark"
 )
 
 func TestKwargs(t *testing.T) {
-	// Mental note: skylark numbers pop out as int64s
+	// Mental note: starlark numbers pop out as int64s
 	data := []byte(`
 func("a", 1, foo=1, foo=2)
 `)
 
-	thread := &skylark.Thread{
-		Print: func(_ *skylark.Thread, msg string) { fmt.Println(msg) },
+	thread := &starlark.Thread{
+		Print: func(_ *starlark.Thread, msg string) { fmt.Println(msg) },
 	}
 
 	var goargs []interface{}
 	var gokwargs []Kwarg
 
-	fn := func(thread *skylark.Thread, fn *skylark.Builtin, args skylark.Tuple, kwargs []skylark.Tuple) (skylark.Value, error) {
+	fn := func(thread *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
 		var err error
 		goargs, err = FromTuple(args)
 		if err != nil {
-			return skylark.None, err
+			return starlark.None, err
 		}
 		gokwargs, err = FromKwargs(kwargs)
 		if err != nil {
-			return skylark.None, err
+			return starlark.None, err
 		}
-		return skylark.None, nil
+		return starlark.None, nil
 	}
 
-	globals := map[string]skylark.Value{
-		"func": skylark.NewBuiltin("func", fn),
+	globals := map[string]starlark.Value{
+		"func": starlark.NewBuiltin("func", fn),
 	}
-	if err := skylark.ExecFile(thread, "foo.sky", data, globals); err != nil {
+	globals, err := starlark.ExecFile(thread, "foo.star", data, globals)
+	if err != nil {
 		t.Fatal(err)
 	}
 
@@ -62,20 +63,21 @@ func TestMakeSkyFn(t *testing.T) {
 	}
 
 	skyf := MakeSkyFn("boo", fn)
-	// Mental note: skylark numbers pop out as int64s
+	// Mental note: starlark numbers pop out as int64s
 	data := []byte(`
 a = boo("a", 1, True, 0.1)
 b = 0.1
 	`)
 
-	thread := &skylark.Thread{
-		Print: func(_ *skylark.Thread, msg string) { fmt.Println(msg) },
+	thread := &starlark.Thread{
+		Print: func(_ *starlark.Thread, msg string) { fmt.Println(msg) },
 	}
 
-	globals := map[string]skylark.Value{
+	globals := map[string]starlark.Value{
 		"boo": skyf,
 	}
-	if err := skylark.ExecFile(thread, "foo.sky", data, globals); err != nil {
+	globals, err := starlark.ExecFile(thread, "foo.star", data, globals)
+	if err != nil {
 		t.Fatal(err)
 	}
 	v := FromStringDict(globals)
@@ -90,19 +92,20 @@ func TestMakeSkyFnOneRet(t *testing.T) {
 	}
 
 	skyf := MakeSkyFn("boo", fn)
-	// Mental note: skylark numbers pop out as int64s
+	// Mental note: starlark numbers pop out as int64s
 	data := []byte(`
 a = boo("skyhook")
 `)
 
-	thread := &skylark.Thread{
-		Print: func(_ *skylark.Thread, msg string) { fmt.Println(msg) },
+	thread := &starlark.Thread{
+		Print: func(_ *starlark.Thread, msg string) { fmt.Println(msg) },
 	}
 
-	globals := map[string]skylark.Value{
+	globals := map[string]starlark.Value{
 		"boo": skyf,
 	}
-	if err := skylark.ExecFile(thread, "foo.sky", data, globals); err != nil {
+	globals, err := starlark.ExecFile(thread, "foo.star", data, globals)
+	if err != nil {
 		t.Fatal(err)
 	}
 	v := FromStringDict(globals)

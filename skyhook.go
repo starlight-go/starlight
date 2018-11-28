@@ -1,4 +1,4 @@
-// Package skyhook provides a convenience wrapper around github.com/google/skylark.
+// Package skyhook provides a convenience wrapper around github.com/google/starlark.
 package skyhook
 
 import (
@@ -7,28 +7,28 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/google/skylark"
-	"github.com/google/skylark/resolve"
-	"github.com/google/skylark/syntax"
 	"github.com/hippogryph/skyhook/convert"
+	"go.starlark.net/resolve"
+	"go.starlark.net/starlark"
 )
 
 func init() {
 	resolve.AllowNestedDef = true // allow def statements within function bodies
 	resolve.AllowLambda = true    // allow lambda expressions
 	resolve.AllowFloat = true     // allow floating point literals, the 'float' built-in, and x / y
-	resolve.AllowFreeze = true    // allow the 'freeze' built-in
 	resolve.AllowSet = true       // allow the 'set' built-in
+	resolve.AllowBitwise = true   // allow bitwise operations
 }
 
-// Eval evaluates the skylark source with the given global variables. The type
-// of the argument for the src parameter must be string, []byte, or io.Reader.
+// Eval evaluates the starlark source with the given global variables. The type
+// of the argument for the src parameter must be string (filename), []byte, or io.Reader.
 func Eval(src interface{}, globals map[string]interface{}) (map[string]interface{}, error) {
 	dict, err := convert.MakeStringDict(globals)
 	if err != nil {
 		return nil, err
 	}
-	if err := skylark.ExecFile(new(skylark.Thread), "eval.sky", src, dict); err != nil {
+	dict, err = starlark.ExecFile(new(starlark.Thread), "eval.sky", src, dict)
+	if err != nil {
 		return nil, err
 	}
 	return convert.FromStringDict(dict), nil
@@ -40,32 +40,19 @@ type Skyhook struct {
 	readFile func(filename string) ([]byte, error)
 
 	mu      *sync.Mutex
-	plugins map[string]*syntax.File
+	plugins map[string]*starlark.Program
 }
 
-func parseFile(name string, b []byte, dict skylark.StringDict) (*syntax.File, error) {
-	f, err := syntax.Parse(name, b)
+func run(p *starlark.Program, globals map[string]interface{}) (map[string]interface{}, error) {
+	g, err := convert.MakeStringDict(globals)
 	if err != nil {
 		return nil, err
 	}
-
-	isPredeclaredGlobal := func(name string) bool { _, ok := dict[name]; return ok } // x, but not y
-	isBuiltin := func(name string) bool { return skylark.Universe[name] != nil }
-
-	if err := resolve.File(f, isPredeclaredGlobal, isBuiltin); err != nil {
+	ret, err := p.Init(new(starlark.Thread), g)
+	if err != nil {
 		return nil, err
 	}
-	return f, nil
-}
-
-func runFile(f *syntax.File, globals skylark.StringDict) (map[string]interface{}, error) {
-	thread := new(skylark.Thread)
-	fr := thread.Push(globals, len(f.Locals))
-	defer thread.Pop()
-	if err := fr.ExecStmts(f.Stmts); err != nil {
-		return nil, err
-	}
-	return convert.FromStringDict(globals), nil
+	return convert.FromStringDict(ret), nil
 }
 
 // New returns a Skyhook that looks in the given directories for plugin files to
@@ -73,7 +60,7 @@ func runFile(f *syntax.File, globals skylark.StringDict) (map[string]interface{}
 func New(dirs []string) *Skyhook {
 	return &Skyhook{
 		dirs:     dirs,
-		plugins:  map[string]*syntax.File{},
+		plugins:  map[string]*starlark.Program{},
 		readFile: ioutil.ReadFile,
 		mu:       &sync.Mutex{},
 	}
@@ -88,23 +75,23 @@ func (s *Skyhook) Run(filename string, globals map[string]interface{}) (map[stri
 		return nil, err
 	}
 	s.mu.Lock()
-	if f, ok := s.plugins[filename]; ok {
+	if p, ok := s.plugins[filename]; ok {
 		s.mu.Unlock()
-		return runFile(f, dict)
+		return run(p, globals)
 	}
 	s.mu.Unlock()
 
 	for _, d := range s.dirs {
 		b, err := s.readFile(filepath.Join(d, filename))
 		if err == nil {
-			f, err := parseFile(filename, b, dict)
+			_, p, err := starlark.SourceProgram(filename, b, dict.Has)
 			if err != nil {
 				return nil, err
 			}
 			s.mu.Lock()
-			s.plugins[filename] = f
+			s.plugins[filename] = p
 			s.mu.Unlock()
-			return runFile(f, dict)
+			return run(p, globals)
 		}
 	}
 	return nil, fmt.Errorf("cannot find plugin file %q in any plugin directoy", filename)
@@ -113,7 +100,7 @@ func (s *Skyhook) Run(filename string, globals map[string]interface{}) (map[stri
 // Reset clears all cached scripts.
 func (s *Skyhook) Reset() {
 	s.mu.Lock()
-	s.plugins = map[string]*syntax.File{}
+	s.plugins = map[string]*starlark.Program{}
 	s.mu.Unlock()
 }
 

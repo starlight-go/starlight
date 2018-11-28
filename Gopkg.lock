@@ -3,7 +3,7 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/google/skylark"
+  name = "github.com/google/starlark"
   packages = [".","resolve","syntax"]
   revision = "13998aa7464402849172959d67ded8527c7d9370"
 

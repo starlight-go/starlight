@@ -14,7 +14,7 @@ func TestConversion(t *testing.T) {
 
 	s := New([]string{"bar"})
 	s.readFile = read
-	actual, err := s.Run("foo.sky", map[string]interface{}{
+	actual, err := s.Run("foo.star", map[string]interface{}{
 		"input": "hello",
 		"bang":  bang,
 	})
@@ -22,7 +22,6 @@ func TestConversion(t *testing.T) {
 		t.Fatal(err)
 	}
 	expected := map[string]interface{}{
-		"input":  "hello",
 		"output": "hello world!",
 	}
 	if len(actual) != len(expected) {
@@ -42,7 +41,7 @@ func TestConversion(t *testing.T) {
 
 func TestDirOrder(t *testing.T) {
 	s := New([]string{"testdata", "testdata/later"})
-	v, err := s.Run("foo.sky", map[string]interface{}{"input": "hello"})
+	v, err := s.Run("foo.star", map[string]interface{}{"input": "hello"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,12 +75,11 @@ output = input + foo()
 
 	s := New([]string{"bar"})
 	s.readFile = read
-	actual, err := s.Run("foo.sky", map[string]interface{}{"input": "hello"})
+	actual, err := s.Run("foo.star", map[string]interface{}{"input": "hello"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	expected := map[string]interface{}{
-		"input":  "hello",
 		"output": "hello world!",
 	}
 	if len(actual) != len(expected) {
@@ -106,7 +104,7 @@ func TestRerun(t *testing.T) {
 
 	s := New([]string{"bar"})
 	s.readFile = read
-	actual, err := s.Run("foo.sky", map[string]interface{}{
+	actual, err := s.Run("foo.star", map[string]interface{}{
 		"input": "hello",
 	})
 	if err != nil {
@@ -117,7 +115,7 @@ func TestRerun(t *testing.T) {
 	}
 
 	// change inputs but not script
-	actual, err = s.Run("foo.sky", map[string]interface{}{
+	actual, err = s.Run("foo.star", map[string]interface{}{
 		"input": "goodbye",
 	})
 	if err != nil {
@@ -129,7 +127,7 @@ func TestRerun(t *testing.T) {
 
 	// change script, shouldn't change output sicne we cached it
 	data = []byte(`output = "hi!"`)
-	actual, err = s.Run("foo.sky", map[string]interface{}{
+	actual, err = s.Run("foo.star", map[string]interface{}{
 		"input": "goodbye",
 	})
 	if err != nil {
@@ -140,8 +138,8 @@ func TestRerun(t *testing.T) {
 	}
 
 	// remove script, should change output
-	s.Forget("foo.sky")
-	actual, err = s.Run("foo.sky", map[string]interface{}{
+	s.Forget("foo.star")
+	actual, err = s.Run("foo.star", map[string]interface{}{
 		"input": "goodbye",
 	})
 	if err != nil {
@@ -154,7 +152,7 @@ func TestRerun(t *testing.T) {
 	// reset all, should change output
 	s.Reset()
 	data = []byte(`output = "bye!"`)
-	actual, err = s.Run("foo.sky", map[string]interface{}{
+	actual, err = s.Run("foo.star", map[string]interface{}{
 		"input": "goodbye",
 	})
 	if err != nil {
