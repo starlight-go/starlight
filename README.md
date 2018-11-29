@@ -2,9 +2,9 @@
 
 ### (recently moved from github.com/natefinch/skyhook)
 
-Skyhook is a wrapper for google's [starlark](https://github.com/google/starlark)
+Skyhook is a wrapper for google's [starlark](https://github.com/google/starlark-go)
 embedded python-like language. Skyhook is intended to give you an easier-to-use
-interface for running starlark scripts directly from your Go programs.  Skylark
+interface for running starlark scripts directly from your Go programs.  Starlark
 is a dialect of python, and has a Go native interpreter, so you can let your
 users extend your application without any external requirements.
 
@@ -46,7 +46,7 @@ script with the given name, and then run that script.
 
 ## Inputs and Outputs
 
-Skylark scripts (and skyhook scripts by extension) use global variables in the
+Starlark scripts (and skyhook scripts by extension) use global variables in the
 script as the input and output.  Args in Run are created as global variables in
 the script with the given names.
 
@@ -62,11 +62,10 @@ key "output" and with the value "hello world!".
 
 ## Types
 
-Skyhook automatically translates go types in Run's args map to starlark types.
-The types supported are any int, uint, or float type, strings,
-maps[interface{}]interface{}, map[interface{}]bool, []interface{}.  Where all
-interface[] values must be one of the supported types.  Conversion out of
-starlark scripts work in reverse much the same way.  You may also pass in
+Skyhook automatically translates go types to starlark types. The types supported
+are strings, bools, and any int, uint, or float type.  Also supported are
+structs, slices, arrays, and maps that use the aforementioned types. Conversion
+out of starlark scripts work in reverse much the same way.  You may also pass in
 starlark.Value types directly, in which case they will be passed to the script
 as-is.
 

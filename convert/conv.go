@@ -18,53 +18,43 @@ func init() {
 }
 
 // ToValue attempts to convert the given value to a starlark.Value.  It supports
-// all int, uint, and float numeric types, strings, and bools.  Any
-// starlark.Value is passed through as-is.  A []interface{} is converted with
-// MakeList, map[interface{}]interface{} is converted with MakeDict, and
-// map[interface{}]bool is converted with MakeSet.
+// all int, uint, and float numeric types, plus strings and bools.  It supports
+// structs, maps, slices, and functions that use the aforementioned.  Any
+// starlark.Value is passed through as-is.
 func ToValue(v interface{}) (starlark.Value, error) {
 	if val, ok := v.(starlark.Value); ok {
 		return val, nil
 	}
-	switch v := v.(type) {
-	case int:
-		return starlark.MakeInt(v), nil
-	case int8:
-		return starlark.MakeInt(int(v)), nil
-	case int16:
-		return starlark.MakeInt(int(v)), nil
-	case int32:
-		return starlark.MakeInt(int(v)), nil
-	case int64:
-		return starlark.MakeInt64(v), nil
-	case uint:
-		return starlark.MakeUint(v), nil
-	case uint8:
-		return starlark.MakeUint(uint(v)), nil
-	case uint16:
-		return starlark.MakeUint(uint(v)), nil
-	case uint32:
-		return starlark.MakeUint(uint(v)), nil
-	case uint64:
-		return starlark.MakeUint64(v), nil
-	case bool:
-		return starlark.Bool(v), nil
-	case string:
-		return starlark.String(v), nil
-	case float32:
-		return starlark.Float(float64(v)), nil
-	case float64:
-		return starlark.Float(v), nil
-	case []interface{}:
+	val := reflect.ValueOf(v)
+	kind := val.Kind()
+	if val.Kind() == reflect.Ptr || val.Kind() == reflect.Interface {
+		kind = val.Elem().Kind()
+	}
+	switch kind {
+	case reflect.Bool:
+		return starlark.Bool(val.Bool()), nil
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32:
+		return starlark.MakeInt(int(val.Int())), nil
+	case reflect.Int64:
+		return starlark.MakeInt64(val.Int()), nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32:
+		return starlark.MakeUint(uint(val.Uint())), nil
+	case reflect.Uint64:
+		return starlark.MakeUint64(val.Uint()), nil
+	case reflect.Float32, reflect.Float64:
+		return starlark.Float(val.Float()), nil
+	case reflect.Func:
+		return MakeStarFn("fn", v), nil
+	case reflect.Map:
+		return MakeDict(v)
+	case reflect.String:
+		return starlark.String(val.String()), nil
+	case reflect.Slice, reflect.Array:
 		// There's no way to tell if they want a tuple or a list, so we default
 		// to the more permissive list type.
 		return MakeList(v)
-	case map[interface{}]interface{}:
-		// Dict
-		return MakeDict(v)
-	case map[interface{}]bool:
-		// Set
-		return MakeSet(v)
+	case reflect.Struct:
+		return NewStruct(v), nil
 	}
 
 	return nil, fmt.Errorf("type %T is not a supported starlark type", v)
@@ -76,12 +66,14 @@ func FromValue(v starlark.Value) (interface{}, error) {
 	case starlark.Bool:
 		return bool(v), nil
 	case starlark.Int:
+		// starlark ints can be signed or unsigned
 		if i, ok := v.Int64(); ok {
 			return i, nil
 		}
 		if i, ok := v.Uint64(); ok {
 			return i, nil
 		}
+
 		// buh... maybe > maxint64?  Dunno
 		return nil, fmt.Errorf("can't convert starlark.Int %q to int", v)
 	case starlark.Float:
@@ -105,12 +97,6 @@ func FromValue(v starlark.Value) (interface{}, error) {
 func MakeStringDict(m map[string]interface{}) (starlark.StringDict, error) {
 	dict := make(starlark.StringDict, len(m))
 	for k, v := range m {
-		t := reflect.TypeOf(v)
-		if t.Kind() == reflect.Func {
-			dict[k] = MakeStarFn(k, v)
-			continue
-		}
-
 		val, err := ToValue(v)
 		if err != nil {
 			return nil, err
@@ -164,12 +150,16 @@ func MakeTuple(v []interface{}) (starlark.Tuple, error) {
 	return starlark.Tuple(vals), nil
 }
 
-// MakeList makes a list from the given values.  The acceptable values are the
-// same as ToValue.
-func MakeList(v []interface{}) (*starlark.List, error) {
-	vals := make([]starlark.Value, len(v))
-	for i := range v {
-		val, err := ToValue(v[i])
+// MakeList makes a list from the given slice or array. The acceptable values
+// in the list are the same as ToValue.
+func MakeList(v interface{}) (*starlark.List, error) {
+	val := reflect.ValueOf(v)
+	if val.Kind() != reflect.Slice || val.Kind() != reflect.Array {
+		panic(fmt.Errorf("value should be slice or array but was %T", v))
+	}
+	vals := make([]starlark.Value, val.Len())
+	for i := 0; i < val.Len(); i++ {
+		val, err := ToValue(val.Index(i))
 		if err != nil {
 			return nil, err
 		}
@@ -196,14 +186,19 @@ func FromList(l *starlark.List) ([]interface{}, error) {
 
 // MakeDict makes a Dict from the given map.  The acceptable keys and values are
 // the same as ToValue.
-func MakeDict(d map[interface{}]interface{}) (*starlark.Dict, error) {
+func MakeDict(v interface{}) (starlark.Value, error) {
+	r := reflect.ValueOf(v)
+	if r.Kind() != reflect.Map {
+		panic(fmt.Errorf("can't make map of %T", v))
+	}
 	dict := starlark.Dict{}
-	for k, v := range d {
-		key, err := ToValue(k)
+	for _, k := range r.MapKeys() {
+		key, err := ToValue(k.Interface())
 		if err != nil {
 			return nil, err
 		}
-		val, err := ToValue(v)
+
+		val, err := ToValue(r.MapIndex(k).Interface())
 		if err != nil {
 			return nil, err
 		}
@@ -348,4 +343,108 @@ func MakeStarFn(name string, gofn interface{}) *starlark.Builtin {
 		}
 		return tup, err
 	})
+}
+
+// NewStruct makes a new Struct from the given struct or pointer to struct.
+func NewStruct(v interface{}) *Struct {
+	t := reflect.TypeOf(v)
+	if t.Kind() == reflect.Struct || (t.Kind() == reflect.Ptr && t.Elem().Kind() == reflect.Struct) {
+		return &Struct{
+			i: v,
+			v: reflect.ValueOf(v),
+			t: t,
+		}
+	}
+	panic(fmt.Errorf("value must be a struct or pointer to a struct, but was %T", v))
+}
+
+// Struct is a wrapper around a Go struct to let it be manipulated by starlark
+// scripts.
+type Struct struct {
+	i interface{}
+	v reflect.Value
+	t reflect.Type
+}
+
+// Attr returns a starlark value that wraps the method or field with the given
+// name.
+func (s *Struct) Attr(name string) (starlark.Value, error) {
+	method := s.v.MethodByName(name)
+	if method.Kind() != reflect.Invalid {
+		return MakeStarFn(name, method.Interface()), nil
+	}
+	v := s.v
+	if s.v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	field := v.FieldByName(name)
+	if field.Kind() != reflect.Invalid {
+		return ToValue(field.Interface())
+	}
+	method = s.v.MethodByName(name)
+	if method.Kind() != reflect.Invalid {
+		return MakeStarFn(name, method.Interface()), nil
+	}
+	return nil, nil
+}
+
+// AttrNames returns the list of all fields and methods on this struct.
+func (s *Struct) AttrNames() []string {
+	names := make([]string, 0, s.t.NumField()+s.t.NumMethod())
+	for i := 0; i < s.t.NumField(); i++ {
+		names = append(names, s.t.Field(i).Name)
+	}
+	for i := 0; i < s.t.NumMethod(); i++ {
+		names = append(names, s.t.Method(i).Name)
+	}
+	return names
+}
+
+// SetField sets the struct field with the given name with the given value.
+func (s *Struct) SetField(name string, val starlark.Value) error {
+	i, err := FromValue(val)
+	if err != nil {
+		return err
+	}
+	v := s.v
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	field := v.FieldByName(name)
+	if field.CanSet() {
+		field.Set(reflect.ValueOf(i))
+		return nil
+	}
+	return fmt.Errorf("%s is not a settable field", name)
+}
+
+// String returns the string representation of the value.
+// Starlark string values are quoted as if by Python's repr.
+func (s *Struct) String() string {
+	return fmt.Sprint(s.i)
+}
+
+// Type returns a short string describing the value's type.
+func (s *Struct) Type() string {
+	return fmt.Sprintf("%T", s.i)
+}
+
+// Freeze causes the value, and all values transitively
+// reachable from it through collections and closures, to be
+// marked as frozen.  All subsequent mutations to the data
+// structure through this API will fail dynamically, making the
+// data structure immutable and safe for publishing to other
+// Starlark interpreters running concurrently.
+func (s *Struct) Freeze() {}
+
+// Truth returns the truth value of an object.
+func (s *Struct) Truth() starlark.Bool {
+	return true
+}
+
+// Hash returns a function of x such that Equals(x, y) => Hash(x) == Hash(y).
+// Hash may fail if the value's type is not hashable, or if the value
+// contains a non-hashable value.
+func (s *Struct) Hash() (uint32, error) {
+	return 0, errors.New("not hashable")
 }
