@@ -113,3 +113,33 @@ a = boo("skyhook")
 		t.Fatalf(`expected a = "hi skyhook", but got %#v`, v["a"])
 	}
 }
+
+func TestStructToValue(t *testing.T) {
+	type contact struct {
+		Name, Street string
+	}
+	c := &contact{Name: "bob", Street: "oak"}
+
+	s := NewStruct(c)
+	v, err := ToValue(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, ok := v.(*Struct)
+	if !ok {
+		t.Fatalf("expected v to be *Struct, but was %T", v)
+	}
+}
+
+func TestMakeNamedList(t *testing.T) {
+	type Strings []string
+	v := Strings{"foo", "bar"}
+	val, err := ToValue(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, ok := val.(*starlark.List)
+	if !ok {
+		t.Fatalf("value should be starlark.List but was %T", val)
+	}
+}

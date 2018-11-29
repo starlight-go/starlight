@@ -88,6 +88,8 @@ func FromValue(v starlark.Value) (interface{}, error) {
 		return FromDict(v)
 	case *starlark.Set:
 		return FromSet(v)
+	case *Struct:
+		return v.i, nil
 	}
 	return nil, fmt.Errorf("type %T is not a supported starlark type", v)
 }
@@ -154,12 +156,12 @@ func MakeTuple(v []interface{}) (starlark.Tuple, error) {
 // in the list are the same as ToValue.
 func MakeList(v interface{}) (*starlark.List, error) {
 	val := reflect.ValueOf(v)
-	if val.Kind() != reflect.Slice || val.Kind() != reflect.Array {
-		panic(fmt.Errorf("value should be slice or array but was %T", v))
+	if val.Kind() != reflect.Slice && val.Kind() != reflect.Array {
+		panic(fmt.Errorf("value should be slice or array but was %v, %T", val.Kind(), v))
 	}
 	vals := make([]starlark.Value, val.Len())
 	for i := 0; i < val.Len(); i++ {
-		val, err := ToValue(val.Index(i))
+		val, err := ToValue(val.Index(i).Interface())
 		if err != nil {
 			return nil, err
 		}
@@ -344,6 +346,9 @@ func MakeStarFn(name string, gofn interface{}) *starlark.Builtin {
 		return tup, err
 	})
 }
+
+// ensure a *Struct is a valid starlark.Value
+var _ starlark.Value = (*Struct)(nil)
 
 // NewStruct makes a new Struct from the given struct or pointer to struct.
 func NewStruct(v interface{}) *Struct {

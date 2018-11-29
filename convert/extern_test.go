@@ -225,3 +225,29 @@ do()
 		t.Fatalf("expected %v, but was %v", expected, output)
 	}
 }
+
+func TestIndexSliceItems(t *testing.T) {
+	slice := []*contact{
+		&contact{Name: "bill smith"},
+		&contact{Name: "mary smith"},
+	}
+	out, err := skyhook.Eval([]byte(`
+out = contacts[1].Name
+`), map[string]interface{}{"contacts": slice})
+	if err != nil {
+		t.Fatal(err)
+	}
+	o, ok := out["out"]
+	if !ok {
+		t.Fatal("out param not found")
+	}
+	s, ok := o.(string)
+	if !ok {
+		t.Fatalf("out param not string, was %T", o)
+	}
+	expected := "mary smith"
+	if s != expected {
+		t.Fatalf("expected %q, but was %q", expected, s)
+	}
+
+}
