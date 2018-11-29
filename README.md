@@ -1,54 +1,54 @@
 # Skyhook [![GoDoc](https://godoc.org/github.com/hippogryph/skyhook?status.svg)](https://godoc.org/github.com/hippogryph/skyhook)
 
-### (recently moved from github.com/natefinch/skyhook)
+![image](https://user-images.githubusercontent.com/3185864/49255827-20f3f580-f3fb-11e8-8aff-7fa04f052c3a.png)
 
-Skyhook is a wrapper for google's [starlark](https://github.com/google/starlark-go)
+<p align="center">![skyhook](https://user-images.githubusercontent.com/3185864/49255912-57317500-f3fb-11e8-9854-f217105a7248.png)</p>
+
+Skyhook is a wrapper library for google's [starlark](https://github.com/google/starlark-go)
 embedded python-like language. Skyhook is intended to give you an easier-to-use
 interface for running starlark scripts directly from your Go programs.  Starlark
 is a dialect of python, and has a Go native interpreter, so you can let your
 users extend your application without any external requirements.
 
-## Video Demo
+## Example
 
-
-[![Skyhook Demo](https://img.youtube.com/vi/y2QepLHHmsk/maxresdefault.jpg)](https://www.youtube.com/watch?v=y2QepLHHmsk)
-
-## Text Demo
-
-Assume you have this file at plugins/foo.star:
-
-```python
-def foo():
-    return " world!"
-
-output = input + foo()
-```
-
-You can call this script from go thusly:
+You can call a script from go thusly:
 
 ```go
-sky := skyhook.New([]string{"plugins"})
-globals := map[string]interface{}{"input":"hello"}
-globals, err := sky.Run("foo.star", globals)
-if err != nil {
-    return err
-}
-fmt.Println(globals["output"])
 
-// prints "hello world!"
+type contact struct {
+    Name string
+}
+hello := func(s string) string {
+    return "hello " + s
+}
+
+c := &contact{Name: "Bob"}
+
+out, _ := skyhook.Eval(
+    []byte("output = hi(c.Name)"), 
+    map[string]interface{}{
+        "c":c, 
+        "hi":hello,
+    })
+
+fmt.Println(out["output"])
+
+// prints "hello bob"
 ```
+
+Eval expects either a filename, slice of bytes, or io.Reader as its argument containing the code, and then a map of global variables to populate the script with.
 
 ## Usage
 
-You give skyhook a list of directories to look in, and it will look
-for starlark scripts in each of those directories, in order, until it finds a
-script with the given name, and then run that script.
+Skyhook.New creates a plugin cache that will read and compile scripts on the fly.
+
+Skyhook.Eval does all the compilation at call time.
 
 ## Inputs and Outputs
 
 Starlark scripts (and skyhook scripts by extension) use global variables in the
-script as the input and output.  Args in Run are created as global variables in
-the script with the given names.
+script as the input.
 
 Thus if args are `map[string]interface{}{"input":"hello"}`, the script may act
 on the variable called input thusly:
@@ -67,7 +67,7 @@ are strings, bools, and any int, uint, or float type.  Also supported are
 structs, slices, arrays, and maps that use the aforementioned types. Conversion
 out of starlark scripts work in reverse much the same way.  You may also pass in
 starlark.Value types directly, in which case they will be passed to the script
-as-is.
+as-is (this is useful if you need custom behavior).
 
 ## Functions
 
