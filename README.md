@@ -1,8 +1,6 @@
 # Skyhook [![GoDoc](https://godoc.org/github.com/hippogryph/skyhook?status.svg)](https://godoc.org/github.com/hippogryph/skyhook)
 
-![image](https://user-images.githubusercontent.com/3185864/49255827-20f3f580-f3fb-11e8-8aff-7fa04f052c3a.png)
-
-<p align="center">![skyhook](https://user-images.githubusercontent.com/3185864/49255912-57317500-f3fb-11e8-9854-f217105a7248.png)</p>
+<p align="center"><img src="https://user-images.githubusercontent.com/3185864/49255912-57317500-f3fb-11e8-9854-f217105a7248.png"/></p>
 
 Skyhook is a wrapper library for google's [starlark](https://github.com/google/starlark-go)
 embedded python-like language. Skyhook is intended to give you an easier-to-use
