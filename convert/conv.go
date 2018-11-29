@@ -395,12 +395,29 @@ func (s *Struct) Attr(name string) (starlark.Value, error) {
 
 // AttrNames returns the list of all fields and methods on this struct.
 func (s *Struct) AttrNames() []string {
-	names := make([]string, 0, s.t.NumField()+s.t.NumMethod())
-	for i := 0; i < s.t.NumField(); i++ {
-		names = append(names, s.t.Field(i).Name)
+	count := s.t.NumMethod()
+	if s.v.Kind() == reflect.Ptr {
+		elem := s.v.Elem()
+		count += elem.NumField() + elem.NumMethod()
+	} else {
+		count += s.t.NumField()
 	}
+	names := make([]string, 0, count)
 	for i := 0; i < s.t.NumMethod(); i++ {
 		names = append(names, s.t.Method(i).Name)
+	}
+	if s.v.Kind() == reflect.Ptr {
+		t := s.v.Elem().Type()
+		for i := 0; i < t.NumField(); i++ {
+			names = append(names, t.Field(i).Name)
+		}
+		for i := 0; i < t.NumMethod(); i++ {
+			names = append(names, t.Method(i).Name)
+		}
+	} else {
+		for i := 0; i < s.t.NumField(); i++ {
+			names = append(names, s.t.Field(i).Name)
+		}
 	}
 	return names
 }

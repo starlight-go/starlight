@@ -143,3 +143,44 @@ func TestMakeNamedList(t *testing.T) {
 		t.Fatalf("value should be starlark.List but was %T", val)
 	}
 }
+
+type contact struct {
+	Name string
+	age  int
+}
+
+func (c contact) Foo()  {}
+func (c *contact) Bar() {}
+
+// reflect can't find non-exported functions... but can find non-exported
+// methods ¯\_(ツ)_/¯
+
+func (c *contact) bar() {}
+func (c contact) foo()  {}
+
+func TestStructAttrNames(t *testing.T) {
+	c := &contact{}
+	s := NewStruct(c)
+	names := s.AttrNames()
+	expected := []string{"Name", "age", "Foo", "Bar"}
+	for _, s := range names {
+		if !contains(expected, s) {
+			t.Errorf("output contains extra value %q", s)
+		}
+	}
+	for _, s := range expected {
+		if !contains(names, s) {
+			t.Errorf("output is missing value %q", s)
+		}
+	}
+	t.Logf("%q", names)
+}
+
+func contains(list []string, s string) bool {
+	for _, l := range list {
+		if s == l {
+			return true
+		}
+	}
+	return false
+}
