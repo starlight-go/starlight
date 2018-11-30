@@ -2,11 +2,15 @@
 
 <p align="center"><img src="https://user-images.githubusercontent.com/3185864/49255912-57317500-f3fb-11e8-9854-f217105a7248.png"/></p>
 
+<p align="center" style="font-weight:bold">!! Skyhook is still a WIP !!<p/>
+
+
 Skyhook is a wrapper library for google's [starlark](https://github.com/google/starlark-go)
 embedded python-like language. Skyhook is intended to give you an easier-to-use
 interface for running starlark scripts directly from your Go programs.  Starlark
 is a dialect of python, and has a Go native interpreter, so you can let your
 users extend your application without any external requirements.
+
 
 ## Example
 

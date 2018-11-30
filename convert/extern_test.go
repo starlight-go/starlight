@@ -282,6 +282,10 @@ out = contacts[1].Name
 	}
 }
 
+type Named interface {
+	Name() string
+}
+
 type foo struct {
 	name string
 }
@@ -322,5 +326,24 @@ func BenchmarkFuncCall(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
+	}
+}
+
+func TestInterfaceAssignment(t *testing.T) {
+	var output string
+	fn := func(n Named) {
+		output = n.Name()
+	}
+	globals := map[string]interface{}{
+		"fn":  fn,
+		"foo": &foo{name: "bob"},
+	}
+	code := []byte(`fn(foo)`)
+	_, err := skyhook.Eval(code, globals)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if output != "bob" {
+		t.Fatalf("expected %q but got %q", "bob", output)
 	}
 }

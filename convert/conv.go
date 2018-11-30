@@ -25,7 +25,10 @@ func ToValue(v interface{}) (starlark.Value, error) {
 	if val, ok := v.(starlark.Value); ok {
 		return val, nil
 	}
-	val := reflect.ValueOf(v)
+	return toValue(reflect.ValueOf(v))
+}
+
+func toValue(val reflect.Value) (starlark.Value, error) {
 	kind := val.Kind()
 	if val.Kind() == reflect.Ptr || val.Kind() == reflect.Interface {
 		kind = val.Elem().Kind()
@@ -44,20 +47,20 @@ func ToValue(v interface{}) (starlark.Value, error) {
 	case reflect.Float32, reflect.Float64:
 		return starlark.Float(val.Float()), nil
 	case reflect.Func:
-		return MakeStarFn("fn", v), nil
+		return makeStarFn("fn", val), nil
 	case reflect.Map:
-		return MakeDict(v)
+		return makeDict(val)
 	case reflect.String:
 		return starlark.String(val.String()), nil
 	case reflect.Slice, reflect.Array:
 		// There's no way to tell if they want a tuple or a list, so we default
 		// to the more permissive list type.
-		return MakeList(v)
+		return makeList(val)
 	case reflect.Struct:
-		return NewStruct(v), nil
+		return makeStruct(val), nil
 	}
 
-	return nil, fmt.Errorf("type %T is not a supported starlark type", v)
+	return nil, fmt.Errorf("type %T is not a supported starlark type", val.Interface())
 }
 
 // FromValue converts a starlark value to a go value.
@@ -88,7 +91,7 @@ func FromValue(v starlark.Value) interface{} {
 	case *starlark.Set:
 		return FromSet(v)
 	case *Struct:
-		return v.i
+		return v.v.Interface()
 	default:
 		// dunno, hope it's a custom type that the receiver knows how to deal with.
 		return v
@@ -131,7 +134,11 @@ func FromTuple(v starlark.Tuple) []interface{} {
 // MakeTuple makes a tuple from the given slice.  The acceptable types in the
 // slice are the same as ToValue.
 func MakeTuple(v interface{}) (starlark.Tuple, error) {
-	vals, err := makeVals(v)
+	return makeTuple(reflect.ValueOf(v))
+}
+
+func makeTuple(val reflect.Value) (starlark.Tuple, error) {
+	vals, err := makeSliceVals(val)
 	if err != nil {
 		return nil, err
 	}
@@ -141,21 +148,24 @@ func MakeTuple(v interface{}) (starlark.Tuple, error) {
 // MakeList makes a list from the given slice or array. The acceptable values
 // in the list are the same as ToValue.
 func MakeList(v interface{}) (*starlark.List, error) {
-	vals, err := makeVals(v)
+	return makeList(reflect.ValueOf(v))
+}
+
+func makeList(val reflect.Value) (*starlark.List, error) {
+	vals, err := makeSliceVals(val)
 	if err != nil {
 		return nil, err
 	}
 	return starlark.NewList(vals), nil
 }
 
-func makeVals(v interface{}) ([]starlark.Value, error) {
-	val := reflect.ValueOf(v)
+func makeSliceVals(val reflect.Value) ([]starlark.Value, error) {
 	if val.Kind() != reflect.Slice && val.Kind() != reflect.Array {
-		panic(fmt.Errorf("value should be slice or array but was %v, %T", val.Kind(), v))
+		panic(fmt.Errorf("value should be slice or array but was %v, %T", val.Kind(), val.Interface()))
 	}
 	vals := make([]starlark.Value, val.Len())
 	for i := 0; i < val.Len(); i++ {
-		val, err := ToValue(val.Index(i).Interface())
+		val, err := toValue(val.Index(i))
 		if err != nil {
 			return nil, err
 		}
@@ -180,18 +190,21 @@ func FromList(l *starlark.List) []interface{} {
 // MakeDict makes a Dict from the given map.  The acceptable keys and values are
 // the same as ToValue.
 func MakeDict(v interface{}) (starlark.Value, error) {
-	r := reflect.ValueOf(v)
-	if r.Kind() != reflect.Map {
-		panic(fmt.Errorf("can't make map of %T", v))
+	return makeDict(reflect.ValueOf(v))
+}
+
+func makeDict(val reflect.Value) (starlark.Value, error) {
+	if val.Kind() != reflect.Map {
+		panic(fmt.Errorf("can't make map of %T", val.Interface()))
 	}
 	dict := starlark.Dict{}
-	for _, k := range r.MapKeys() {
-		key, err := ToValue(k.Interface())
+	for _, k := range val.MapKeys() {
+		key, err := toValue(k)
 		if err != nil {
 			return nil, err
 		}
 
-		val, err := ToValue(r.MapIndex(k).Interface())
+		val, err := toValue(val.MapIndex(k))
 		if err != nil {
 			return nil, err
 		}
@@ -277,27 +290,29 @@ var errType = reflect.TypeOf((*error)(nil)).Elem()
 // they'll be returned as a tuple.  MakeStarFn will panic if you pass it
 // something other than a function.
 func MakeStarFn(name string, gofn interface{}) *starlark.Builtin {
-	t := reflect.TypeOf(gofn)
-	if t.Kind() != reflect.Func {
+	v := reflect.ValueOf(gofn)
+	if v.Kind() != reflect.Func {
 		panic(errors.New("fn is not a function"))
 	}
+	return makeStarFn(name, v)
+}
 
+func makeStarFn(name string, gofn reflect.Value) *starlark.Builtin {
 	return starlark.NewBuiltin(name, func(thread *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-		if len(args) != t.NumIn() {
-			return starlark.None, fmt.Errorf("expected %d args but got %d", t.NumIn(), len(args))
+		if len(args) != gofn.Type().NumIn() {
+			return starlark.None, fmt.Errorf("expected %d args but got %d", gofn.Type().NumIn(), len(args))
 		}
-		v := reflect.ValueOf(gofn)
 		vals := FromTuple(args)
 		rvs := make([]reflect.Value, 0, len(vals))
 		for i, v := range vals {
 			val := reflect.ValueOf(v)
-			argT := t.In(i)
+			argT := gofn.Type().In(i)
 			if val.Type() != argT {
 				val = val.Convert(argT)
 			}
 			rvs = append(rvs, val)
 		}
-		out := v.Call(rvs)
+		out := gofn.Call(rvs)
 		if len(out) == 0 {
 			return starlark.None, nil
 		}
@@ -310,21 +325,21 @@ func MakeStarFn(name string, gofn interface{}) *starlark.Builtin {
 			out = out[:len(out)-1]
 		}
 		if len(out) == 1 {
-			v, err2 := ToValue(out[0].Interface())
+			v, err2 := toValue(out[0])
 			if err2 != nil {
 				return starlark.None, err2
 			}
 			return v, err
 		}
-		ifcs := make([]interface{}, 0, len(out))
+		res := make([]starlark.Value, 0, len(out))
 		// tuple-up multple values
 		for i := range out {
-			ifcs = append(ifcs, out[i].Interface())
+			val, err := toValue(out[i])
+			if err != nil {
+				return starlark.None, err
+			}
+			res = append(res, val)
 		}
-		tup, err2 := MakeTuple(ifcs)
-		if err != nil {
-			return starlark.None, err2
-		}
-		return tup, err
+		return starlark.Tuple(res), nil
 	})
 }

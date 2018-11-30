@@ -11,23 +11,22 @@ import (
 // NewStruct makes a new starlark-compatible Struct from the given struct or
 // pointer to struct.  This will panic if you pass it anything else.
 func NewStruct(v interface{}) *Struct {
-	t := reflect.TypeOf(v)
-	if t.Kind() == reflect.Struct || (t.Kind() == reflect.Ptr && t.Elem().Kind() == reflect.Struct) {
+	return makeStruct(reflect.ValueOf(v))
+}
+
+func makeStruct(val reflect.Value) *Struct {
+	if val.Kind() == reflect.Struct || (val.Kind() == reflect.Ptr && val.Elem().Kind() == reflect.Struct) {
 		return &Struct{
-			i: v,
-			v: reflect.ValueOf(v),
-			t: t,
+			v: val,
 		}
 	}
-	panic(fmt.Errorf("value must be a struct or pointer to a struct, but was %T", v))
+	panic(fmt.Errorf("value must be a struct or pointer to a struct, but was %T", val.Interface()))
 }
 
 // Struct is a wrapper around a Go struct to let it be manipulated by starlark
 // scripts.
 type Struct struct {
-	i interface{}
 	v reflect.Value
-	t reflect.Type
 }
 
 // Attr returns a starlark value that wraps the method or field with the given
@@ -35,35 +34,35 @@ type Struct struct {
 func (s *Struct) Attr(name string) (starlark.Value, error) {
 	method := s.v.MethodByName(name)
 	if method.Kind() != reflect.Invalid {
-		return MakeStarFn(name, method.Interface()), nil
+		return makeStarFn(name, method), nil
 	}
 	v := s.v
 	if s.v.Kind() == reflect.Ptr {
 		v = v.Elem()
 		method = s.v.MethodByName(name)
 		if method.Kind() != reflect.Invalid {
-			return MakeStarFn(name, method.Interface()), nil
+			return makeStarFn(name, method), nil
 		}
 	}
 	field := v.FieldByName(name)
 	if field.Kind() != reflect.Invalid {
-		return ToValue(field.Interface())
+		return toValue(field)
 	}
 	return nil, nil
 }
 
 // AttrNames returns the list of all fields and methods on this struct.
 func (s *Struct) AttrNames() []string {
-	count := s.t.NumMethod()
+	count := s.v.NumMethod()
 	if s.v.Kind() == reflect.Ptr {
 		elem := s.v.Elem()
 		count += elem.NumField() + elem.NumMethod()
 	} else {
-		count += s.t.NumField()
+		count += s.v.NumField()
 	}
 	names := make([]string, 0, count)
-	for i := 0; i < s.t.NumMethod(); i++ {
-		names = append(names, s.t.Method(i).Name)
+	for i := 0; i < s.v.NumMethod(); i++ {
+		names = append(names, s.v.Type().Method(i).Name)
 	}
 	if s.v.Kind() == reflect.Ptr {
 		t := s.v.Elem().Type()
@@ -74,8 +73,8 @@ func (s *Struct) AttrNames() []string {
 			names = append(names, t.Method(i).Name)
 		}
 	} else {
-		for i := 0; i < s.t.NumField(); i++ {
-			names = append(names, s.t.Field(i).Name)
+		for i := 0; i < s.v.NumField(); i++ {
+			names = append(names, s.v.Type().Field(i).Name)
 		}
 	}
 	return names
@@ -103,12 +102,12 @@ func (s *Struct) SetField(name string, val starlark.Value) error {
 // String returns the string representation of the value.
 // Starlark string values are quoted as if by Python's repr.
 func (s *Struct) String() string {
-	return fmt.Sprint(s.i)
+	return fmt.Sprint(s.v.Interface())
 }
 
 // Type returns a short string describing the value's type.
 func (s *Struct) Type() string {
-	return fmt.Sprintf("%T", s.i)
+	return fmt.Sprintf("skyhook_struct<%T>", s.v.Interface())
 }
 
 // Freeze causes the value, and all values transitively
@@ -128,5 +127,5 @@ func (s *Struct) Truth() starlark.Bool {
 // Hash may fail if the value's type is not hashable, or if the value
 // contains a non-hashable value.
 func (s *Struct) Hash() (uint32, error) {
-	return 0, errors.New("not hashable")
+	return 0, errors.New("skyhook_struct is not hashable")
 }
