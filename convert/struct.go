@@ -93,7 +93,11 @@ func (s *Struct) SetField(name string, val starlark.Value) error {
 	}
 	field := v.FieldByName(name)
 	if field.CanSet() {
-		field.Set(reflect.ValueOf(i))
+		val := reflect.ValueOf(i)
+		if field.Type() != val.Type() {
+			val = val.Convert(field.Type())
+		}
+		field.Set(val)
 		return nil
 	}
 	return fmt.Errorf("%s is not a settable field", name)

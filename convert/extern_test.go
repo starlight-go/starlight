@@ -185,6 +185,35 @@ func TestNamedType(t *testing.T) {
 		t.Fatalf("expected %v, but was %v", expected, b)
 	}
 }
+func TestNamedTypeFunc(t *testing.T) {
+	id := ID(4)
+	var out ID
+	f := func(id ID) {
+		out = id
+	}
+	_, err := skyhook.Eval([]byte(`f(id)`), map[string]interface{}{"f": f, "id": id})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out != id {
+		t.Fatalf("expected %v, but got %v", id, out)
+	}
+}
+
+func TestNamedTypeField(t *testing.T) {
+	type foo struct {
+		ID
+	}
+	f := &foo{ID: 5}
+	g := &foo{ID: 10}
+	_, err := skyhook.Eval([]byte(`f.ID = g.ID`), map[string]interface{}{"f": f, "g": g})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.ID != ID(10) {
+		t.Fatalf("expected %v, but got %v", ID(10), f.ID)
+	}
+}
 
 func TestModMap(t *testing.T) {
 	m := map[string]*contact{

@@ -315,8 +315,13 @@ func MakeStarFn(name string, gofn interface{}) *starlark.Builtin {
 			return starlark.None, err
 		}
 		rvs := make([]reflect.Value, 0, len(vals))
-		for _, v := range vals {
-			rvs = append(rvs, reflect.ValueOf(v))
+		for i, v := range vals {
+			val := reflect.ValueOf(v)
+			argT := t.In(i)
+			if val.Type() != argT {
+				val = val.Convert(argT)
+			}
+			rvs = append(rvs, val)
 		}
 		out := v.Call(rvs)
 		if len(out) == 0 {
