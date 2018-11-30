@@ -55,7 +55,7 @@ on the variable called input thusly:
 output = input + "world!"
 ```
 
-When run, this script will create a value in the map returned from Run with the
+When run, this script will create a value in the map returned with the
 key "output" and with the value "hello world!".
 
 ## Types

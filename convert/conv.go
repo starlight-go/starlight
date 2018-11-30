@@ -126,10 +126,9 @@ func FromStringDict(m starlark.StringDict) map[string]interface{} {
 
 // FromTuple converts a starlark.Tuple into a []interface{}.
 func FromTuple(v starlark.Tuple) ([]interface{}, error) {
-	vals := []starlark.Value(v)
-	ret := make([]interface{}, len(vals))
-	for i := range vals {
-		val, err := FromValue(vals[i])
+	ret := make([]interface{}, len(v))
+	for i := range v {
+		val, err := FromValue(v[i])
 		if err != nil {
 			return nil, err
 		}
@@ -138,16 +137,12 @@ func FromTuple(v starlark.Tuple) ([]interface{}, error) {
 	return ret, nil
 }
 
-// MakeTuple makes a tuple from the given values.  The acceptable values are the
-// same as ToValue.
-func MakeTuple(v []interface{}) (starlark.Tuple, error) {
-	vals := make([]starlark.Value, len(v))
-	for i := range v {
-		val, err := ToValue(v[i])
-		if err != nil {
-			return nil, err
-		}
-		vals[i] = val
+// MakeTuple makes a tuple from the given slice.  The acceptable types in the
+// slice are the same as ToValue.
+func MakeTuple(v interface{}) (starlark.Tuple, error) {
+	vals, err := makeVals(v)
+	if err != nil {
+		return nil, err
 	}
 	return starlark.Tuple(vals), nil
 }
@@ -155,6 +150,14 @@ func MakeTuple(v []interface{}) (starlark.Tuple, error) {
 // MakeList makes a list from the given slice or array. The acceptable values
 // in the list are the same as ToValue.
 func MakeList(v interface{}) (*starlark.List, error) {
+	vals, err := makeVals(v)
+	if err != nil {
+		return nil, err
+	}
+	return starlark.NewList(vals), nil
+}
+
+func makeVals(v interface{}) ([]starlark.Value, error) {
 	val := reflect.ValueOf(v)
 	if val.Kind() != reflect.Slice && val.Kind() != reflect.Array {
 		panic(fmt.Errorf("value should be slice or array but was %v, %T", val.Kind(), v))
@@ -167,7 +170,7 @@ func MakeList(v interface{}) (*starlark.List, error) {
 		}
 		vals[i] = val
 	}
-	return starlark.NewList(vals), nil
+	return vals, nil
 }
 
 // FromList creates a go slice from the given starlark list.
