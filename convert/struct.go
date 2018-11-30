@@ -8,10 +8,8 @@ import (
 	"go.starlark.net/starlark"
 )
 
-// ensure a *Struct is a valid starlark.Value
-var _ starlark.Value = (*Struct)(nil)
-
-// NewStruct makes a new Struct from the given struct or pointer to struct.
+// NewStruct makes a new starlark-compatible Struct from the given struct or
+// pointer to struct.  This will panic if you pass it anything else.
 func NewStruct(v interface{}) *Struct {
 	t := reflect.TypeOf(v)
 	if t.Kind() == reflect.Struct || (t.Kind() == reflect.Ptr && t.Elem().Kind() == reflect.Struct) {
