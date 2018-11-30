@@ -79,21 +79,16 @@ output = input + foo()
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := map[string]interface{}{
-		"output": "hello world!",
+	v, ok := actual["output"]
+	if !ok {
+		t.Fatal("missing output value")
 	}
-	if len(actual) != len(expected) {
-		t.Errorf("expected %d items, but got %d", len(expected), len(actual))
+	act, ok := v.(string)
+	if !ok {
+		t.Fatalf("output should be string but was %T", v)
 	}
-	for k, v := range expected {
-		act, ok := actual[k]
-		if !ok {
-			t.Errorf("actual missing key %q", k)
-			continue
-		}
-		if !reflect.DeepEqual(act, v) {
-			t.Errorf("actual value for key %q expected to be %v but was %v", k, v, act)
-		}
+	if act != "hello world!" {
+		t.Fatalf("expected hello world but got %q", act)
 	}
 }
 

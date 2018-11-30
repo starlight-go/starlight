@@ -23,10 +23,7 @@ func("a", 1, foo=1, foo=2)
 
 	fn := func(thread *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
 		var err error
-		goargs, err = FromTuple(args)
-		if err != nil {
-			return starlark.None, err
-		}
+		goargs = FromTuple(args)
 		gokwargs, err = FromKwargs(kwargs)
 		if err != nil {
 			return starlark.None, err

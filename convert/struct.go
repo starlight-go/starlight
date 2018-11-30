@@ -83,10 +83,7 @@ func (s *Struct) AttrNames() []string {
 
 // SetField sets the struct field with the given name with the given value.
 func (s *Struct) SetField(name string, val starlark.Value) error {
-	i, err := FromValue(val)
-	if err != nil {
-		return err
-	}
+	i := FromValue(val)
 	v := s.v
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()

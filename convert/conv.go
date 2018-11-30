@@ -61,25 +61,24 @@ func ToValue(v interface{}) (starlark.Value, error) {
 }
 
 // FromValue converts a starlark value to a go value.
-func FromValue(v starlark.Value) (interface{}, error) {
+func FromValue(v starlark.Value) interface{} {
 	switch v := v.(type) {
 	case starlark.Bool:
-		return bool(v), nil
+		return bool(v)
 	case starlark.Int:
 		// starlark ints can be signed or unsigned
 		if i, ok := v.Int64(); ok {
-			return i, nil
+			return i
 		}
 		if i, ok := v.Uint64(); ok {
-			return i, nil
+			return i
 		}
-
 		// buh... maybe > maxint64?  Dunno
-		return nil, fmt.Errorf("can't convert starlark.Int %q to int", v)
+		panic(fmt.Errorf("can't convert starlark.Int %q to int", v))
 	case starlark.Float:
-		return float64(v), nil
+		return float64(v)
 	case starlark.String:
-		return string(v), nil
+		return string(v)
 	case *starlark.List:
 		return FromList(v)
 	case starlark.Tuple:
@@ -89,9 +88,11 @@ func FromValue(v starlark.Value) (interface{}, error) {
 	case *starlark.Set:
 		return FromSet(v)
 	case *Struct:
-		return v.i, nil
+		return v.i
+	default:
+		// dunno, hope it's a custom type that the receiver knows how to deal with.
+		return v
 	}
-	return nil, fmt.Errorf("type %T is not a supported starlark type", v)
 }
 
 // MakeStringDict makes a StringDict from the given arg. The types supported are
@@ -113,28 +114,18 @@ func MakeStringDict(m map[string]interface{}) (starlark.StringDict, error) {
 func FromStringDict(m starlark.StringDict) map[string]interface{} {
 	ret := make(map[string]interface{}, len(m))
 	for k, v := range m {
-		val, err := FromValue(v)
-		if err != nil {
-			// we just ignore these, since they may be things like starlark
-			// functions that we just can't represent.
-			continue
-		}
-		ret[k] = val
+		ret[k] = FromValue(v)
 	}
 	return ret
 }
 
 // FromTuple converts a starlark.Tuple into a []interface{}.
-func FromTuple(v starlark.Tuple) ([]interface{}, error) {
+func FromTuple(v starlark.Tuple) []interface{} {
 	ret := make([]interface{}, len(v))
 	for i := range v {
-		val, err := FromValue(v[i])
-		if err != nil {
-			return nil, err
-		}
-		ret[i] = val
+		ret[i] = FromValue(v[i])
 	}
-	return ret, nil
+	return ret
 }
 
 // MakeTuple makes a tuple from the given slice.  The acceptable types in the
@@ -174,19 +165,16 @@ func makeVals(v interface{}) ([]starlark.Value, error) {
 }
 
 // FromList creates a go slice from the given starlark list.
-func FromList(l *starlark.List) ([]interface{}, error) {
+func FromList(l *starlark.List) []interface{} {
 	ret := make([]interface{}, 0, l.Len())
 	var v starlark.Value
 	i := l.Iterate()
 	defer i.Done()
 	for i.Next(&v) {
-		val, err := FromValue(v)
-		if err != nil {
-			return nil, err
-		}
+		val := FromValue(v)
 		ret = append(ret, val)
 	}
-	return ret, nil
+	return ret
 }
 
 // MakeDict makes a Dict from the given map.  The acceptable keys and values are
@@ -213,20 +201,15 @@ func MakeDict(v interface{}) (starlark.Value, error) {
 }
 
 // FromDict converts a starlark.Dict to a map[interface{}]interface{}
-func FromDict(m *starlark.Dict) (map[interface{}]interface{}, error) {
+func FromDict(m *starlark.Dict) map[interface{}]interface{} {
 	ret := make(map[interface{}]interface{}, m.Len())
 	for _, k := range m.Keys() {
-		key, err := FromValue(k)
-		if err != nil {
-			return nil, err
-		}
-		val, _, err := m.Get(k)
-		if err != nil {
-			return nil, err
-		}
+		key := FromValue(k)
+		// should never be not found or unhashable, so ignore err and found.
+		val, _, _ := m.Get(k)
 		ret[key] = val
 	}
-	return ret, nil
+	return ret
 }
 
 // MakeSet makes a Set from the given map.  The acceptable keys
@@ -246,19 +229,16 @@ func MakeSet(s map[interface{}]bool) (*starlark.Set, error) {
 }
 
 // FromSet converts a starlark.Set to a map[interface{}]bool
-func FromSet(s *starlark.Set) (map[interface{}]bool, error) {
+func FromSet(s *starlark.Set) map[interface{}]bool {
 	ret := make(map[interface{}]bool, s.Len())
 	var v starlark.Value
 	i := s.Iterate()
 	defer i.Done()
 	for i.Next(&v) {
-		val, err := FromValue(v)
-		if err != nil {
-			return nil, err
-		}
+		val := FromValue(v)
 		ret[val] = true
 	}
-	return ret, nil
+	return ret
 }
 
 // Kwarg is a single instance of a python foo=bar style named argument.
@@ -273,10 +253,7 @@ type Kwarg struct {
 func FromKwargs(kwargs []starlark.Tuple) ([]Kwarg, error) {
 	args := make([]Kwarg, 0, len(kwargs))
 	for _, t := range kwargs {
-		tup, err := FromTuple(t)
-		if err != nil {
-			return nil, err
-		}
+		tup := FromTuple(t)
 		if len(tup) != 2 {
 			return nil, fmt.Errorf("kwarg tuple should have 2 vals, has %v", len(tup))
 		}
@@ -310,10 +287,7 @@ func MakeStarFn(name string, gofn interface{}) *starlark.Builtin {
 			return starlark.None, fmt.Errorf("expected %d args but got %d", t.NumIn(), len(args))
 		}
 		v := reflect.ValueOf(gofn)
-		vals, err := FromTuple(args)
-		if err != nil {
-			return starlark.None, err
-		}
+		vals := FromTuple(args)
 		rvs := make([]reflect.Value, 0, len(vals))
 		for i, v := range vals {
 			val := reflect.ValueOf(v)
@@ -328,7 +302,7 @@ func MakeStarFn(name string, gofn interface{}) *starlark.Builtin {
 			return starlark.None, nil
 		}
 		last := out[len(out)-1]
-		err = nil
+		var err error
 		if last.Type() == errType {
 			if v := last.Interface(); v != nil {
 				err = v.(error)
