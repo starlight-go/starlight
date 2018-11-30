@@ -14,23 +14,38 @@ You can call a script from go thusly:
 
 ```go
 
+import (
+    "fmt"
+    "github.com/go-skyhook/skyhook"
+)
+
 type contact struct {
-    Name string
-}
-hello := func(s string) string {
-    return "hello " + s
+    name string
 }
 
-c := &contact{Name: "Bob"}
+func (c *contact) Name() string {
+    return c.name
+}
 
-out, _ := skyhook.Eval(
-    []byte("output = hi(c.Name)"), 
+func main() {
+    hello := func(s string) string { 
+        fmt.Println("hello " + s)
+    }
+
+    c := &contact{Name: "Bob"}
+
+    script := []byte(`
+        hello(c.Name)
+    `)
+
+    // please check errors
+    _, err := skyhook.Eval(
+    script, 
     map[string]interface{}{
         "c":c, 
-        "hi":hello,
+        "hello":hello,
     })
-
-fmt.Println(out["output"])
+}
 
 // prints "hello bob"
 ```
