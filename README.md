@@ -1,4 +1,4 @@
-# Skyhook [![GoDoc](https://godoc.org/github.com/hippogryph/skyhook?status.svg)](https://godoc.org/github.com/hippogryph/skyhook)
+# Skyhook [![GoDoc](https://godoc.org/github.com/go-skyhook/skyhook?status.svg)](https://godoc.org/github.com/go-skyhook/skyhook)
 
 <p align="center"><img src="https://user-images.githubusercontent.com/3185864/49255912-57317500-f3fb-11e8-9854-f217105a7248.png"/></p>
 

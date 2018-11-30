@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/hippogryph/skyhook/convert"
+	"github.com/go-skyhook/skyhook/convert"
 	"go.starlark.net/resolve"
 	"go.starlark.net/starlark"
 )

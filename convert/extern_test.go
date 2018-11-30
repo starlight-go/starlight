@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/hippogryph/skyhook"
-	"github.com/hippogryph/skyhook/convert"
+	"github.com/go-skyhook/skyhook"
+	"github.com/go-skyhook/skyhook/convert"
 	"go.starlark.net/starlark"
 )
 
