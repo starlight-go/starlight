@@ -9,6 +9,11 @@ import (
 	"go.starlark.net/starlark"
 )
 
+// Much of this code is derived in large part from starlark-go's Dict
+// implementation:
+// https://github.com/google/starlark-go/blob/master/starlark/value.go#L612
+// Which is Copyright 2017 The Bazel Authors and uses a BSD 3-clause license.
+
 // GoMap is a wrapper around a Go map that makes it satisfy starlark's map
 // interfaces.
 type GoMap struct {
