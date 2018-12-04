@@ -28,7 +28,26 @@ func ToValue(v interface{}) (starlark.Value, error) {
 	return toValue(reflect.ValueOf(v))
 }
 
+func hasMethods(val reflect.Value) bool {
+	if val.NumMethod() > 0 {
+		return true
+	}
+	if val.Kind() == reflect.Ptr && val.Elem().NumMethod() > 0 {
+		return true
+	}
+	return false
+}
+
 func toValue(val reflect.Value) (starlark.Value, error) {
+	if hasMethods(val) {
+		// this handles all basic types with methods (numbers, strings, bools)
+		ifc, ok := makeGoInterface(val)
+		if ok {
+			return ifc, nil
+		}
+		// TODO: maps and slices with methods
+	}
+
 	kind := val.Kind()
 	if val.Kind() == reflect.Ptr || val.Kind() == reflect.Interface {
 		kind = val.Elem().Kind()
@@ -36,13 +55,9 @@ func toValue(val reflect.Value) (starlark.Value, error) {
 	switch kind {
 	case reflect.Bool:
 		return starlark.Bool(val.Bool()), nil
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32:
-		return starlark.MakeInt(int(val.Int())), nil
-	case reflect.Int64:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return starlark.MakeInt64(val.Int()), nil
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32:
-		return starlark.MakeUint(uint(val.Uint())), nil
-	case reflect.Uint64:
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return starlark.MakeUint64(val.Uint()), nil
 	case reflect.Float32, reflect.Float64:
 		return starlark.Float(val.Float()), nil
@@ -91,6 +106,8 @@ func FromValue(v starlark.Value) interface{} {
 	case *starlark.Set:
 		return FromSet(v)
 	case *GoStruct:
+		return v.v.Interface()
+	case *GoInterface:
 		return v.v.Interface()
 	case *GoMap:
 		return v.v.Interface()

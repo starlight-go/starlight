@@ -164,13 +164,13 @@ func TestMap(t *testing.T) {
 	}
 }
 
-func TestNamedType(t *testing.T) {
-	m := map[string]*contact{
+func TestStructPtr(t *testing.T) {
+	vals := map[string]interface{}{
 		"bill": &contact{ID: 1, Name: "bill smith"},
 		"mary": &contact{ID: 2, Name: "mary smith"},
 	}
 
-	out, err := skyhook.Eval([]byte(`out = contacts["bill"].ID == contacts["mary"].ID`), map[string]interface{}{"contacts": m})
+	out, err := skyhook.Eval([]byte(`out = bill.ID == mary.ID`), vals)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -361,5 +361,45 @@ func TestInterfaceAssignment(t *testing.T) {
 	}
 	if output != "bob" {
 		t.Fatalf("expected %q but got %q", "bob", output)
+	}
+}
+
+type Celsius float64
+
+func (c Celsius) ToF() Fahrenheit {
+	return Fahrenheit(c*9/5 + 32)
+}
+
+type Fahrenheit float64
+
+func (f Fahrenheit) ToC() Celsius {
+	return Celsius(f - 32*5/9)
+}
+
+func TestGoInterface(t *testing.T) {
+
+	f := Fahrenheit(451)
+
+	globals := map[string]interface{}{
+		"f": f,
+	}
+	code := []byte(`
+c = f.ToC()
+`)
+	output, err := skyhook.Eval(code, globals)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, ok := output["c"]
+	if !ok {
+		t.Fatal("missing value in output")
+	}
+	c, ok := v.(Celsius)
+	if !ok {
+		t.Fatalf("expected c to be Celsius but was %T", v)
+	}
+
+	if c != f.ToC() {
+		t.Fatalf("expected %v but got %v", f.ToC(), c)
 	}
 }

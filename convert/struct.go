@@ -10,8 +10,8 @@ import (
 
 // NewStruct makes a new starlark-compatible Struct from the given struct or
 // pointer to struct.  This will panic if you pass it anything else.
-func NewStruct(s interface{}) *GoStruct {
-	val := reflect.ValueOf(s)
+func NewStruct(strct interface{}) *GoStruct {
+	val := reflect.ValueOf(strct)
 	if val.Kind() == reflect.Struct || (val.Kind() == reflect.Ptr && val.Elem().Kind() == reflect.Struct) {
 		return &GoStruct{v: val}
 	}
@@ -26,15 +26,15 @@ type GoStruct struct {
 
 // Attr returns a starlark value that wraps the method or field with the given
 // name.
-func (s *GoStruct) Attr(name string) (starlark.Value, error) {
-	method := s.v.MethodByName(name)
+func (g *GoStruct) Attr(name string) (starlark.Value, error) {
+	method := g.v.MethodByName(name)
 	if method.Kind() != reflect.Invalid {
 		return makeStarFn(name, method), nil
 	}
-	v := s.v
-	if s.v.Kind() == reflect.Ptr {
+	v := g.v
+	if g.v.Kind() == reflect.Ptr {
 		v = v.Elem()
-		method = s.v.MethodByName(name)
+		method = g.v.MethodByName(name)
 		if method.Kind() != reflect.Invalid {
 			return makeStarFn(name, method), nil
 		}
@@ -47,20 +47,20 @@ func (s *GoStruct) Attr(name string) (starlark.Value, error) {
 }
 
 // AttrNames returns the list of all fields and methods on this struct.
-func (s *GoStruct) AttrNames() []string {
-	count := s.v.NumMethod()
-	if s.v.Kind() == reflect.Ptr {
-		elem := s.v.Elem()
+func (g *GoStruct) AttrNames() []string {
+	count := g.v.NumMethod()
+	if g.v.Kind() == reflect.Ptr {
+		elem := g.v.Elem()
 		count += elem.NumField() + elem.NumMethod()
 	} else {
-		count += s.v.NumField()
+		count += g.v.NumField()
 	}
 	names := make([]string, 0, count)
-	for i := 0; i < s.v.NumMethod(); i++ {
-		names = append(names, s.v.Type().Method(i).Name)
+	for i := 0; i < g.v.NumMethod(); i++ {
+		names = append(names, g.v.Type().Method(i).Name)
 	}
-	if s.v.Kind() == reflect.Ptr {
-		t := s.v.Elem().Type()
+	if g.v.Kind() == reflect.Ptr {
+		t := g.v.Elem().Type()
 		for i := 0; i < t.NumField(); i++ {
 			names = append(names, t.Field(i).Name)
 		}
@@ -68,17 +68,17 @@ func (s *GoStruct) AttrNames() []string {
 			names = append(names, t.Method(i).Name)
 		}
 	} else {
-		for i := 0; i < s.v.NumField(); i++ {
-			names = append(names, s.v.Type().Field(i).Name)
+		for i := 0; i < g.v.NumField(); i++ {
+			names = append(names, g.v.Type().Field(i).Name)
 		}
 	}
 	return names
 }
 
 // SetField sets the struct field with the given name with the given value.
-func (s *GoStruct) SetField(name string, val starlark.Value) error {
+func (g *GoStruct) SetField(name string, val starlark.Value) error {
 	i := FromValue(val)
-	v := s.v
+	v := g.v
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
@@ -96,13 +96,13 @@ func (s *GoStruct) SetField(name string, val starlark.Value) error {
 
 // String returns the string representation of the value.
 // Starlark string values are quoted as if by Python's repr.
-func (s *GoStruct) String() string {
-	return fmt.Sprint(s.v.Interface())
+func (g *GoStruct) String() string {
+	return fmt.Sprint(g.v.Interface())
 }
 
 // Type returns a short string describing the value's type.
-func (s *GoStruct) Type() string {
-	return fmt.Sprintf("skyhook_struct<%T>", s.v.Interface())
+func (g *GoStruct) Type() string {
+	return fmt.Sprintf("skyhook_struct<%T>", g.v.Interface())
 }
 
 // Freeze causes the value, and all values transitively
@@ -111,16 +111,16 @@ func (s *GoStruct) Type() string {
 // structure through this API will fail dynamically, making the
 // data structure immutable and safe for publishing to other
 // Starlark interpreters running concurrently.
-func (s *GoStruct) Freeze() {}
+func (g *GoStruct) Freeze() {}
 
 // Truth returns the truth value of an object.
-func (s *GoStruct) Truth() starlark.Bool {
+func (g *GoStruct) Truth() starlark.Bool {
 	return true
 }
 
 // Hash returns a function of x such that Equals(x, y) => Hash(x) == Hash(y).
 // Hash may fail if the value's type is not hashable, or if the value
 // contains a non-hashable value.
-func (s *GoStruct) Hash() (uint32, error) {
+func (g *GoStruct) Hash() (uint32, error) {
 	return 0, errors.New("skyhook_struct is not hashable")
 }
