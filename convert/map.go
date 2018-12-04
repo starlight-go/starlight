@@ -168,13 +168,13 @@ func (g *GoMap) Attr(name string) (starlark.Value, error) {
 }
 
 func (g *GoMap) AttrNames() []string {
-	return builtinAttrNames(dictMethods)
+	return mapAttrNames(dictMethods)
 }
 
-type builtinMethod func(fnname string, recv *GoMap, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error)
+type builtinMapMethod func(fnname string, recv *GoMap, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error)
 
 // stolen from starlark.
-var dictMethods = map[string]builtinMethod{
+var dictMethods = map[string]builtinMapMethod{
 	"clear":      dict_clear,
 	"get":        dict_get,
 	"items":      dict_items,
@@ -186,7 +186,7 @@ var dictMethods = map[string]builtinMethod{
 	"values":     dict_values,
 }
 
-func mapAttr(recv *GoMap, name string, methods map[string]builtinMethod) (starlark.Value, error) {
+func mapAttr(recv *GoMap, name string, methods map[string]builtinMapMethod) (starlark.Value, error) {
 	method := methods[name]
 	if method == nil {
 		return nil, nil // no such method
@@ -199,7 +199,7 @@ func mapAttr(recv *GoMap, name string, methods map[string]builtinMethod) (starla
 	return starlark.NewBuiltin(name, impl).BindReceiver(recv), nil
 }
 
-func builtinAttrNames(methods map[string]builtinMethod) []string {
+func mapAttrNames(methods map[string]builtinMapMethod) []string {
 	names := make([]string, 0, len(methods))
 	for name := range methods {
 		names = append(names, name)
