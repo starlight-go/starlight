@@ -49,7 +49,7 @@ func toValue(val reflect.Value) (starlark.Value, error) {
 	case reflect.Func:
 		return makeStarFn("fn", val), nil
 	case reflect.Map:
-		return makeDict(val)
+		return &GoMap{v: val}, nil
 	case reflect.String:
 		return starlark.String(val.String()), nil
 	case reflect.Slice, reflect.Array:
@@ -57,7 +57,7 @@ func toValue(val reflect.Value) (starlark.Value, error) {
 		// to the more permissive list type.
 		return makeList(val)
 	case reflect.Struct:
-		return makeStruct(val), nil
+		return &GoStruct{v: val}, nil
 	}
 
 	return nil, fmt.Errorf("type %T is not a supported starlark type", val.Interface())
@@ -90,10 +90,14 @@ func FromValue(v starlark.Value) interface{} {
 		return FromDict(v)
 	case *starlark.Set:
 		return FromSet(v)
-	case *Struct:
+	case *GoStruct:
+		return v.v.Interface()
+	case *GoMap:
 		return v.v.Interface()
 	default:
-		// dunno, hope it's a custom type that the receiver knows how to deal with.
+		// dunno, hope it's a custom type that the receiver knows how to deal
+		// with. This can happen with custom-written go types that implement
+		// starlark.Value.
 		return v
 	}
 }

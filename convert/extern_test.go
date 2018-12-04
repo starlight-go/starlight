@@ -217,7 +217,7 @@ func TestNamedTypeField(t *testing.T) {
 	}
 }
 
-func TestModMap(t *testing.T) {
+func TestStructPtrMap(t *testing.T) {
 	m := map[string]*contact{
 		"bill": &contact{Name: "bill smith"},
 		"mary": &contact{Name: "mary smith"},
@@ -230,6 +230,22 @@ func TestModMap(t *testing.T) {
 	expected := "john smith"
 	if m["bill"].Name != expected {
 		t.Fatalf("expected %q, but was %q", expected, m["bill"].Name)
+	}
+}
+
+func TestModMap(t *testing.T) {
+	m := map[string]string{
+		"bill": "bill smith",
+		"mary": "mary smith",
+	}
+
+	_, err := skyhook.Eval([]byte(`contacts["bill"] = "john smith"`), map[string]interface{}{"contacts": m})
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := "john smith"
+	if m["bill"] != expected {
+		t.Fatalf("expected %q, but was %q", expected, m["bill"])
 	}
 }
 

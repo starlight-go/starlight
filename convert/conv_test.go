@@ -122,7 +122,7 @@ func TestStructToValue(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, ok := v.(*Struct)
+	_, ok := v.(*GoStruct)
 	if !ok {
 		t.Fatalf("expected v to be *Struct, but was %T", v)
 	}

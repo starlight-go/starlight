@@ -10,28 +10,23 @@ import (
 
 // NewStruct makes a new starlark-compatible Struct from the given struct or
 // pointer to struct.  This will panic if you pass it anything else.
-func NewStruct(v interface{}) *Struct {
-	return makeStruct(reflect.ValueOf(v))
-}
-
-func makeStruct(val reflect.Value) *Struct {
+func NewStruct(s interface{}) *GoStruct {
+	val := reflect.ValueOf(s)
 	if val.Kind() == reflect.Struct || (val.Kind() == reflect.Ptr && val.Elem().Kind() == reflect.Struct) {
-		return &Struct{
-			v: val,
-		}
+		return &GoStruct{v: val}
 	}
 	panic(fmt.Errorf("value must be a struct or pointer to a struct, but was %T", val.Interface()))
 }
 
-// Struct is a wrapper around a Go struct to let it be manipulated by starlark
+// GoStruct is a wrapper around a Go struct to let it be manipulated by starlark
 // scripts.
-type Struct struct {
+type GoStruct struct {
 	v reflect.Value
 }
 
 // Attr returns a starlark value that wraps the method or field with the given
 // name.
-func (s *Struct) Attr(name string) (starlark.Value, error) {
+func (s *GoStruct) Attr(name string) (starlark.Value, error) {
 	method := s.v.MethodByName(name)
 	if method.Kind() != reflect.Invalid {
 		return makeStarFn(name, method), nil
@@ -52,7 +47,7 @@ func (s *Struct) Attr(name string) (starlark.Value, error) {
 }
 
 // AttrNames returns the list of all fields and methods on this struct.
-func (s *Struct) AttrNames() []string {
+func (s *GoStruct) AttrNames() []string {
 	count := s.v.NumMethod()
 	if s.v.Kind() == reflect.Ptr {
 		elem := s.v.Elem()
@@ -81,7 +76,7 @@ func (s *Struct) AttrNames() []string {
 }
 
 // SetField sets the struct field with the given name with the given value.
-func (s *Struct) SetField(name string, val starlark.Value) error {
+func (s *GoStruct) SetField(name string, val starlark.Value) error {
 	i := FromValue(val)
 	v := s.v
 	if v.Kind() == reflect.Ptr {
@@ -101,12 +96,12 @@ func (s *Struct) SetField(name string, val starlark.Value) error {
 
 // String returns the string representation of the value.
 // Starlark string values are quoted as if by Python's repr.
-func (s *Struct) String() string {
+func (s *GoStruct) String() string {
 	return fmt.Sprint(s.v.Interface())
 }
 
 // Type returns a short string describing the value's type.
-func (s *Struct) Type() string {
+func (s *GoStruct) Type() string {
 	return fmt.Sprintf("skyhook_struct<%T>", s.v.Interface())
 }
 
@@ -116,16 +111,16 @@ func (s *Struct) Type() string {
 // structure through this API will fail dynamically, making the
 // data structure immutable and safe for publishing to other
 // Starlark interpreters running concurrently.
-func (s *Struct) Freeze() {}
+func (s *GoStruct) Freeze() {}
 
 // Truth returns the truth value of an object.
-func (s *Struct) Truth() starlark.Bool {
+func (s *GoStruct) Truth() starlark.Bool {
 	return true
 }
 
 // Hash returns a function of x such that Equals(x, y) => Hash(x) == Hash(y).
 // Hash may fail if the value's type is not hashable, or if the value
 // contains a non-hashable value.
-func (s *Struct) Hash() (uint32, error) {
+func (s *GoStruct) Hash() (uint32, error) {
 	return 0, errors.New("skyhook_struct is not hashable")
 }
