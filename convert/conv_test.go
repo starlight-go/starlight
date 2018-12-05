@@ -135,9 +135,9 @@ func TestMakeNamedList(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, ok := val.(*starlark.List)
+	_, ok := val.(*GoSlice)
 	if !ok {
-		t.Fatalf("value should be starlark.List but was %T", val)
+		t.Fatalf("value should be *GoSlice but was %T", val)
 	}
 }
 

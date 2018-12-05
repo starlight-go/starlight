@@ -20,14 +20,21 @@ func init() {
 	resolve.AllowBitwise = true   // allow bitwise operations
 }
 
+// LoadFunc is a function that tells starlark how to find and load other scripts
+// using the load() function.  If you don't use load() in your scripts, you can pass in nil.
+type LoadFunc func(thread *starlark.Thread, module string) (starlark.StringDict, error)
+
 // Eval evaluates the starlark source with the given global variables. The type
 // of the argument for the src parameter must be string (filename), []byte, or io.Reader.
-func Eval(src interface{}, globals map[string]interface{}) (map[string]interface{}, error) {
+func Eval(src interface{}, globals map[string]interface{}, load LoadFunc) (map[string]interface{}, error) {
 	dict, err := convert.MakeStringDict(globals)
 	if err != nil {
 		return nil, err
 	}
-	dict, err = starlark.ExecFile(new(starlark.Thread), "eval.sky", src, dict)
+	thread := &starlark.Thread{
+		Load: load,
+	}
+	dict, err = starlark.ExecFile(thread, "eval.sky", src, dict)
 	if err != nil {
 		return nil, err
 	}
@@ -38,17 +45,18 @@ func Eval(src interface{}, globals map[string]interface{}) (map[string]interface
 type Skyhook struct {
 	dirs     []string
 	readFile func(filename string) ([]byte, error)
+	load     LoadFunc
 
 	mu      *sync.Mutex
 	plugins map[string]*starlark.Program
 }
 
-func run(p *starlark.Program, globals map[string]interface{}) (map[string]interface{}, error) {
+func run(p *starlark.Program, globals map[string]interface{}, load LoadFunc) (map[string]interface{}, error) {
 	g, err := convert.MakeStringDict(globals)
 	if err != nil {
 		return nil, err
 	}
-	ret, err := p.Init(new(starlark.Thread), g)
+	ret, err := p.Init(&starlark.Thread{Load: load}, g)
 	if err != nil {
 		return nil, err
 	}
@@ -59,6 +67,8 @@ func run(p *starlark.Program, globals map[string]interface{}) (map[string]interf
 // run.  The directories are searched in order for files when Run is called.
 func New(dirs []string) *Skyhook {
 	return &Skyhook{
+		// TODO: make a load function here that works
+		load:     nil,
 		dirs:     dirs,
 		plugins:  map[string]*starlark.Program{},
 		readFile: ioutil.ReadFile,
@@ -77,7 +87,7 @@ func (s *Skyhook) Run(filename string, globals map[string]interface{}) (map[stri
 	s.mu.Lock()
 	if p, ok := s.plugins[filename]; ok {
 		s.mu.Unlock()
-		return run(p, globals)
+		return run(p, globals, s.load)
 	}
 	s.mu.Unlock()
 
@@ -91,7 +101,7 @@ func (s *Skyhook) Run(filename string, globals map[string]interface{}) (map[stri
 			s.mu.Lock()
 			s.plugins[filename] = p
 			s.mu.Unlock()
-			return run(p, globals)
+			return run(p, globals, s.load)
 		}
 	}
 	return nil, fmt.Errorf("cannot find plugin file %q in any plugin directoy", filename)

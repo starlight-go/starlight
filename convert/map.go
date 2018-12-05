@@ -117,7 +117,7 @@ func (g *GoMap) delete(key reflect.Value) (v starlark.Value, found bool, err err
 	if val.Kind() == reflect.Invalid {
 		return starlark.None, false, nil
 	}
-	g.v.SetMapIndex(key, reflect.Zero(g.v.Type().Elem()))
+	g.v.SetMapIndex(key, reflect.Value{})
 
 	ret, err := toValue(val)
 	if err != nil {
@@ -280,7 +280,7 @@ func dict_keys(fnname string, g *GoMap, args starlark.Tuple, _ []starlark.Tuple)
 
 // https://github.com/google/starlark-go/blob/master/doc/spec.md#dict·pop
 func dict_pop(fnname string, g *GoMap, args starlark.Tuple, _ []starlark.Tuple) (starlark.Value, error) {
-	if len(args) == 0 || len(args) > 1 {
+	if len(args) == 0 || len(args) > 2 {
 		return nil, fmt.Errorf("%s: got %d arguments, want 1 or 2", fnname, len(args))
 	}
 	v, found, err := g.Delete(args[0])

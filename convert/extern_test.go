@@ -36,7 +36,7 @@ func TestStructGetField(t *testing.T) {
 	foo.Address.Street = "oak st"
 	foo.Address.Number = 3
 
-	out, err := skyhook.Eval([]byte("out = foo.Address.Street"), map[string]interface{}{"foo": foo})
+	out, err := skyhook.Eval([]byte("out = foo.Address.Street"), map[string]interface{}{"foo": foo}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +60,7 @@ func TestStructPtrGetField(t *testing.T) {
 	foo.Address.Street = "oak st"
 	foo.Address.Number = 3
 
-	out, err := skyhook.Eval([]byte("out = foo.Address.Street"), map[string]interface{}{"foo": foo})
+	out, err := skyhook.Eval([]byte("out = foo.Address.Street"), map[string]interface{}{"foo": foo}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func TestStructPtrSetField(t *testing.T) {
 		Name: "bill",
 	}
 
-	_, err := skyhook.Eval([]byte(`foo.Name = "mary"`), map[string]interface{}{"foo": foo})
+	_, err := skyhook.Eval([]byte(`foo.Name = "mary"`), map[string]interface{}{"foo": foo}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +99,7 @@ func TestStructCallMethod(t *testing.T) {
 	foo.Address.Street = "oak st"
 	foo.Address.Number = 3
 
-	out, err := skyhook.Eval([]byte(`out = foo.GetAddress("maine")`), map[string]interface{}{"foo": foo})
+	out, err := skyhook.Eval([]byte(`out = foo.GetAddress("maine")`), map[string]interface{}{"foo": foo}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +122,7 @@ func TestStructPtrCallMethod(t *testing.T) {
 		Name: "bill",
 	}
 
-	out, err := skyhook.Eval([]byte(`out = foo.GetName()`), map[string]interface{}{"foo": foo})
+	out, err := skyhook.Eval([]byte(`out = foo.GetName()`), map[string]interface{}{"foo": foo}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,7 +146,7 @@ func TestMap(t *testing.T) {
 		"mary": &contact{Name: "mary smith"},
 	}
 
-	out, err := skyhook.Eval([]byte(`out = contacts["bill"].Name`), map[string]interface{}{"contacts": m})
+	out, err := skyhook.Eval([]byte(`out = contacts["bill"].Name`), map[string]interface{}{"contacts": m}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +170,7 @@ func TestStructPtr(t *testing.T) {
 		"mary": &contact{ID: 2, Name: "mary smith"},
 	}
 
-	out, err := skyhook.Eval([]byte(`out = bill.ID == mary.ID`), vals)
+	out, err := skyhook.Eval([]byte(`out = bill.ID == mary.ID`), vals, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +193,7 @@ func TestNamedTypeFunc(t *testing.T) {
 	f := func(id ID) {
 		out = id
 	}
-	_, err := skyhook.Eval([]byte(`f(id)`), map[string]interface{}{"f": f, "id": id})
+	_, err := skyhook.Eval([]byte(`f(id)`), map[string]interface{}{"f": f, "id": id}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,7 +208,7 @@ func TestNamedTypeField(t *testing.T) {
 	}
 	f := &foo{ID: 5}
 	g := &foo{ID: 10}
-	_, err := skyhook.Eval([]byte(`f.ID = g.ID`), map[string]interface{}{"f": f, "g": g})
+	_, err := skyhook.Eval([]byte(`f.ID = g.ID`), map[string]interface{}{"f": f, "g": g}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,7 +223,7 @@ func TestStructPtrMap(t *testing.T) {
 		"mary": &contact{Name: "mary smith"},
 	}
 
-	_, err := skyhook.Eval([]byte(`contacts["bill"].Name = "john smith"`), map[string]interface{}{"contacts": m})
+	_, err := skyhook.Eval([]byte(`contacts["bill"].Name = "john smith"`), map[string]interface{}{"contacts": m}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -239,7 +239,7 @@ func TestModMap(t *testing.T) {
 		"mary": "mary smith",
 	}
 
-	_, err := skyhook.Eval([]byte(`contacts["bill"] = "john smith"`), map[string]interface{}{"contacts": m})
+	_, err := skyhook.Eval([]byte(`contacts["bill"] = "john smith"`), map[string]interface{}{"contacts": m}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -258,12 +258,14 @@ func TestMapItems(t *testing.T) {
 	record := func(k, v string) {
 		output[k] = v
 	}
-	_, err := skyhook.Eval([]byte(`
+	code := []byte(`
 def do():
 	for k, v in contacts.items():
 		record(k, v.Name)
 do()
-`), map[string]interface{}{"contacts": m, "record": record})
+	`)
+	globals := map[string]interface{}{"contacts": m, "record": record}
+	_, err := skyhook.Eval(code, globals, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -278,9 +280,11 @@ func TestIndexSliceItems(t *testing.T) {
 		&contact{Name: "bill smith"},
 		&contact{Name: "mary smith"},
 	}
-	out, err := skyhook.Eval([]byte(`
+	code := []byte(`
 out = contacts[1].Name
-`), map[string]interface{}{"contacts": slice})
+	`)
+	globals := map[string]interface{}{"contacts": slice}
+	out, err := skyhook.Eval(code, globals, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -355,7 +359,7 @@ func TestInterfaceAssignment(t *testing.T) {
 		"foo": &foo{name: "bob"},
 	}
 	code := []byte(`fn(foo)`)
-	_, err := skyhook.Eval(code, globals)
+	_, err := skyhook.Eval(code, globals, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -385,7 +389,7 @@ func TestGoInterface(t *testing.T) {
 	code := []byte(`
 c = f.ToC()
 `)
-	output, err := skyhook.Eval(code, globals)
+	output, err := skyhook.Eval(code, globals, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -412,7 +416,7 @@ func TestGoSlice(t *testing.T) {
 	code := []byte(`
 out = vals[1:-1]
 `)
-	output, err := skyhook.Eval(code, globals)
+	output, err := skyhook.Eval(code, globals, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -426,7 +430,7 @@ out = vals[1:-1]
 	}
 
 	expected := vals[1:4]
-	if reflect.DeepEqual(out, expected) {
+	if !reflect.DeepEqual(out, expected) {
 		t.Fatalf("expected %#v but got %#v", expected, out)
 	}
 }
