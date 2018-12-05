@@ -89,7 +89,7 @@ func (g *GoInterface) String() string {
 
 // Type returns a short string describing the value's type.
 func (g *GoInterface) Type() string {
-	return fmt.Sprintf("skyhook_interface<%T>", g.v.Interface())
+	return fmt.Sprintf("starlight_interface<%T>", g.v.Interface())
 }
 
 // Freeze causes the value, and all values transitively
@@ -122,7 +122,7 @@ func (g *GoInterface) Truth() starlark.Bool {
 // Hash may fail if the value's type is not hashable, or if the value
 // contains a non-hashable value.
 func (g *GoInterface) Hash() (uint32, error) {
-	return 0, errors.New("skyhook_interface is not hashable")
+	return 0, errors.New("starlight_interface is not hashable")
 }
 
 // Below are conversion functions, they only work on the appropriate underlying type.

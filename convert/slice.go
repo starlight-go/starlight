@@ -39,7 +39,7 @@ func (g *GoSlice) String() string {
 
 // Type returns a short string describing the value's type.
 func (g *GoSlice) Type() string {
-	return fmt.Sprintf("skyhook_slice<%T>", g.v.Interface())
+	return fmt.Sprintf("starlight_slice<%T>", g.v.Interface())
 }
 
 // Freeze causes the value, and all values transitively
@@ -61,7 +61,7 @@ func (g *GoSlice) Truth() starlark.Bool {
 // Hash may fail if the value's type is not hashable, or if the value
 // contains a non-hashable value.
 func (g *GoSlice) Hash() (uint32, error) {
-	return 0, errors.New("skyhook_slice is not hashable")
+	return 0, errors.New("starlight_slice is not hashable")
 }
 
 func (g *GoSlice) Clear() error {

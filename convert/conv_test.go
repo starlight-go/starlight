@@ -91,7 +91,7 @@ func TestMakeStarFnOneRet(t *testing.T) {
 	skyf := MakeStarFn("boo", fn)
 	// Mental note: starlark numbers pop out as int64s
 	data := []byte(`
-a = boo("skyhook")
+a = boo("starlight")
 `)
 
 	thread := &starlark.Thread{
@@ -106,8 +106,8 @@ a = boo("skyhook")
 		t.Fatal(err)
 	}
 	v := FromStringDict(globals)
-	if v["a"] != "hi skyhook" {
-		t.Fatalf(`expected a = "hi skyhook", but got %#v`, v["a"])
+	if v["a"] != "hi starlight" {
+		t.Fatalf(`expected a = "hi starlight", but got %#v`, v["a"])
 	}
 }
 

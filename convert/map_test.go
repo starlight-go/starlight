@@ -5,9 +5,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/go-skyhook/skyhook/convert"
+	"github.com/starlight-go/starlight/convert"
 
-	"github.com/go-skyhook/skyhook"
+	"github.com/starlight-go/starlight"
 	"go.starlark.net/starlark"
 )
 
@@ -17,7 +17,7 @@ type assert struct {
 
 func (a *assert) Eq(expected, got interface{}) {
 	if !reflect.DeepEqual(expected, got) {
-		a.t.Fatalf("expected %#v to be equal to %#v", expected, got)
+		a.t.Fatalf("expected %#v (%T) to be equal to %#v (%T)", expected, expected, got, got)
 	}
 }
 
@@ -40,7 +40,7 @@ assert.Eq(x6.pop("c", None), None) # default=None tests an edge case of UnpackAr
 assert.Eq(x6.pop("b"), 2)
 assert.Eq(len(x6), 0)
 `)
-	_, err := skyhook.Eval(code, globals, nil)
+	_, err := starlight.Eval(code, globals, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +52,7 @@ assert.Eq(len(x6), 0)
 	code = []byte(`
 x6.pop("c")
 `)
-	_, err = skyhook.Eval(code, globals, nil)
+	_, err = starlight.Eval(code, globals, nil)
 	expectErr(t, err, "pop: missing key")
 }
 
@@ -67,7 +67,7 @@ func TestMapPopItem(t *testing.T) {
 assert.Eq([x7.popitem(), x7.popitem()], [("a", 1), ("b", 2)])
 assert.Eq(len(x7), 0)
 `)
-	_, err := skyhook.Eval(code, globals, nil)
+	_, err := starlight.Eval(code, globals, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ assert.Eq(len(x7), 0)
 	code = []byte(`
 a = x7.popitem()
 `)
-	_, err = skyhook.Eval(code, globals, nil)
+	_, err = starlight.Eval(code, globals, nil)
 	expectErr(t, err, "popitem: empty dict")
 }
 
@@ -95,7 +95,7 @@ func TestMapKeysValues(t *testing.T) {
 assert.Eq(x8.keys(), ["a", "b"])
 assert.Eq(x8.values(), [1, 2])
 `)
-	_, err := skyhook.Eval(code, globals, nil)
+	_, err := starlight.Eval(code, globals, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,8 +136,8 @@ func TestMapIndex(t *testing.T) {
 	code := []byte(`
 a = x9["a"]
 `)
-	_, err := skyhook.Eval(code, globals, nil)
-	expectErr(t, err, `key "a" not in skyhook_map<map[string]int>`)
+	_, err := starlight.Eval(code, globals, nil)
+	expectErr(t, err, `key "a" not in starlight_map<map[string]int>`)
 
 	code = []byte(`
 x9["a"] = 1
@@ -145,7 +145,7 @@ assert.Eq(x9["a"], 1)
 assert.Eq(x9, toMap({"a": 1}))
 `)
 
-	_, err = skyhook.Eval(code, globals, nil)
+	_, err = starlight.Eval(code, globals, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +161,7 @@ def setIndex(d, k, v):
 setIndex(x9, [], 2)
 `)
 
-	_, err = skyhook.Eval(code, globals, nil)
+	_, err = starlight.Eval(code, globals, nil)
 	expectErr(t, err, `reflect.Value.Convert: value of type []interface {} cannot be converted to type string`)
 
 	v, err := convert.ToValue(x9)
@@ -174,7 +174,7 @@ setIndex(x9, [], 2)
 x9["a"] = 3
 `)
 
-	_, err = skyhook.Eval(code, map[string]interface{}{"x9": v}, nil)
+	_, err = starlight.Eval(code, map[string]interface{}{"x9": v}, nil)
 	expectErr(t, err, `cannot insert into frozen map`)
 
 }
@@ -202,7 +202,7 @@ assert.Eq(x10.get("b"), None)
 assert.Eq(x10.get("a", 2), 1)
 assert.Eq(x10.get("b", 2), 2)
 `)
-	_, err := skyhook.Eval(code, globals, nil)
+	_, err := starlight.Eval(code, globals, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,7 +228,7 @@ assert.Eq(x11["a"], 1)
 x11.clear()
 record("a" not in x11)
 `)
-	_, err := skyhook.Eval(code, globals, nil)
+	_, err := starlight.Eval(code, globals, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -245,8 +245,8 @@ record("a" not in x11)
 	code = []byte(`
 b = x11["a"]
 `)
-	_, err = skyhook.Eval(code, globals, nil)
-	expectErr(t, err, `key "a" not in skyhook_map<map[string]int>`)
+	_, err = starlight.Eval(code, globals, nil)
+	expectErr(t, err, `key "a" not in starlight_map<map[string]int>`)
 
 	v, err := convert.ToValue(x11)
 	if err != nil {
@@ -258,6 +258,32 @@ b = x11["a"]
 x11.clear()
 `)
 
-	_, err = skyhook.Eval(code, map[string]interface{}{"x11": v}, nil)
+	_, err = starlight.Eval(code, map[string]interface{}{"x11": v}, nil)
 	expectErr(t, err, "cannot clear frozen map")
+}
+
+func TestMapSetDefault(t *testing.T) {
+	x12 := map[string]int{"a": 1}
+
+	globals := map[string]interface{}{
+		"assert": &assert{t: t},
+		"x12":    x12,
+	}
+
+	code := []byte(`
+assert.Eq(x12.setdefault("a"), 1)
+assert.Eq(x12["a"], 1)
+# This test is from starlark tests... but we can't set None as a value in
+# a map[string]int
+# assert.Eq(x12.setdefault("b"), None)
+# assert.Eq(x12["b"], None)
+assert.Eq(x12.setdefault("c", 2), 2)
+assert.Eq(x12["c"], 2)
+assert.Eq(x12.setdefault("c", 3), 2)
+assert.Eq(x12["c"], 2)
+`)
+	_, err := starlight.Eval(code, globals, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 }

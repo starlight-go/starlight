@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/go-skyhook/skyhook"
-	"github.com/go-skyhook/skyhook/convert"
+	"github.com/starlight-go/starlight"
+	"github.com/starlight-go/starlight/convert"
 	"go.starlark.net/starlark"
 )
 
@@ -36,7 +36,7 @@ func TestStructGetField(t *testing.T) {
 	foo.Address.Street = "oak st"
 	foo.Address.Number = 3
 
-	out, err := skyhook.Eval([]byte("out = foo.Address.Street"), map[string]interface{}{"foo": foo}, nil)
+	out, err := starlight.Eval([]byte("out = foo.Address.Street"), map[string]interface{}{"foo": foo}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +60,7 @@ func TestStructPtrGetField(t *testing.T) {
 	foo.Address.Street = "oak st"
 	foo.Address.Number = 3
 
-	out, err := skyhook.Eval([]byte("out = foo.Address.Street"), map[string]interface{}{"foo": foo}, nil)
+	out, err := starlight.Eval([]byte("out = foo.Address.Street"), map[string]interface{}{"foo": foo}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func TestStructPtrSetField(t *testing.T) {
 		Name: "bill",
 	}
 
-	_, err := skyhook.Eval([]byte(`foo.Name = "mary"`), map[string]interface{}{"foo": foo}, nil)
+	_, err := starlight.Eval([]byte(`foo.Name = "mary"`), map[string]interface{}{"foo": foo}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +99,7 @@ func TestStructCallMethod(t *testing.T) {
 	foo.Address.Street = "oak st"
 	foo.Address.Number = 3
 
-	out, err := skyhook.Eval([]byte(`out = foo.GetAddress("maine")`), map[string]interface{}{"foo": foo}, nil)
+	out, err := starlight.Eval([]byte(`out = foo.GetAddress("maine")`), map[string]interface{}{"foo": foo}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +122,7 @@ func TestStructPtrCallMethod(t *testing.T) {
 		Name: "bill",
 	}
 
-	out, err := skyhook.Eval([]byte(`out = foo.GetName()`), map[string]interface{}{"foo": foo}, nil)
+	out, err := starlight.Eval([]byte(`out = foo.GetName()`), map[string]interface{}{"foo": foo}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,7 +146,7 @@ func TestMap(t *testing.T) {
 		"mary": &contact{Name: "mary smith"},
 	}
 
-	out, err := skyhook.Eval([]byte(`out = contacts["bill"].Name`), map[string]interface{}{"contacts": m}, nil)
+	out, err := starlight.Eval([]byte(`out = contacts["bill"].Name`), map[string]interface{}{"contacts": m}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +170,7 @@ func TestStructPtr(t *testing.T) {
 		"mary": &contact{ID: 2, Name: "mary smith"},
 	}
 
-	out, err := skyhook.Eval([]byte(`out = bill.ID == mary.ID`), vals, nil)
+	out, err := starlight.Eval([]byte(`out = bill.ID == mary.ID`), vals, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +193,7 @@ func TestNamedTypeFunc(t *testing.T) {
 	f := func(id ID) {
 		out = id
 	}
-	_, err := skyhook.Eval([]byte(`f(id)`), map[string]interface{}{"f": f, "id": id}, nil)
+	_, err := starlight.Eval([]byte(`f(id)`), map[string]interface{}{"f": f, "id": id}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,7 +208,7 @@ func TestNamedTypeField(t *testing.T) {
 	}
 	f := &foo{ID: 5}
 	g := &foo{ID: 10}
-	_, err := skyhook.Eval([]byte(`f.ID = g.ID`), map[string]interface{}{"f": f, "g": g}, nil)
+	_, err := starlight.Eval([]byte(`f.ID = g.ID`), map[string]interface{}{"f": f, "g": g}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,7 +223,7 @@ func TestStructPtrMap(t *testing.T) {
 		"mary": &contact{Name: "mary smith"},
 	}
 
-	_, err := skyhook.Eval([]byte(`contacts["bill"].Name = "john smith"`), map[string]interface{}{"contacts": m}, nil)
+	_, err := starlight.Eval([]byte(`contacts["bill"].Name = "john smith"`), map[string]interface{}{"contacts": m}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -239,7 +239,7 @@ func TestModMap(t *testing.T) {
 		"mary": "mary smith",
 	}
 
-	_, err := skyhook.Eval([]byte(`contacts["bill"] = "john smith"`), map[string]interface{}{"contacts": m}, nil)
+	_, err := starlight.Eval([]byte(`contacts["bill"] = "john smith"`), map[string]interface{}{"contacts": m}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -265,7 +265,7 @@ def do():
 do()
 	`)
 	globals := map[string]interface{}{"contacts": m, "record": record}
-	_, err := skyhook.Eval(code, globals, nil)
+	_, err := starlight.Eval(code, globals, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -284,7 +284,7 @@ func TestIndexSliceItems(t *testing.T) {
 out = contacts[1].Name
 	`)
 	globals := map[string]interface{}{"contacts": slice}
-	out, err := skyhook.Eval(code, globals, nil)
+	out, err := starlight.Eval(code, globals, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -359,7 +359,7 @@ func TestInterfaceAssignment(t *testing.T) {
 		"foo": &foo{name: "bob"},
 	}
 	code := []byte(`fn(foo)`)
-	_, err := skyhook.Eval(code, globals, nil)
+	_, err := starlight.Eval(code, globals, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -389,7 +389,7 @@ func TestGoInterface(t *testing.T) {
 	code := []byte(`
 c = f.ToC()
 `)
-	output, err := skyhook.Eval(code, globals, nil)
+	output, err := starlight.Eval(code, globals, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -416,7 +416,7 @@ func TestGoSlice(t *testing.T) {
 	code := []byte(`
 out = vals[1:-1]
 `)
-	output, err := skyhook.Eval(code, globals, nil)
+	output, err := starlight.Eval(code, globals, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

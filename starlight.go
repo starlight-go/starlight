@@ -1,5 +1,5 @@
-// Package skyhook provides a convenience wrapper around github.com/google/starlark.
-package skyhook
+// Package starlight provides a convenience wrapper around github.com/google/starlark.
+package starlight
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/go-skyhook/skyhook/convert"
+	"github.com/starlight-go/starlight/convert"
 	"go.starlark.net/resolve"
 	"go.starlark.net/starlark"
 )
@@ -41,8 +41,8 @@ func Eval(src interface{}, globals map[string]interface{}, load LoadFunc) (map[s
 	return convert.FromStringDict(dict), nil
 }
 
-// Skyhook is a script/plugin runner.
-type Skyhook struct {
+// Starlight is a script/plugin runner.
+type Starlight struct {
 	dirs     []string
 	readFile func(filename string) ([]byte, error)
 	load     LoadFunc
@@ -63,10 +63,10 @@ func run(p *starlark.Program, globals map[string]interface{}, load LoadFunc) (ma
 	return convert.FromStringDict(ret), nil
 }
 
-// New returns a Skyhook that looks in the given directories for plugin files to
+// New returns a Starlight that looks in the given directories for plugin files to
 // run.  The directories are searched in order for files when Run is called.
-func New(dirs []string) *Skyhook {
-	return &Skyhook{
+func New(dirs []string) *Starlight {
+	return &Starlight{
 		// TODO: make a load function here that works
 		load:     nil,
 		dirs:     dirs,
@@ -79,7 +79,7 @@ func New(dirs []string) *Skyhook {
 // Run looks for a file with the given filename, and runs it with the given globals
 // passed to the script's global namespace. The return value is all convertible
 // global variables from the script, which may include the passed-in globals.
-func (s *Skyhook) Run(filename string, globals map[string]interface{}) (map[string]interface{}, error) {
+func (s *Starlight) Run(filename string, globals map[string]interface{}) (map[string]interface{}, error) {
 	dict, err := convert.MakeStringDict(globals)
 	if err != nil {
 		return nil, err
@@ -108,14 +108,14 @@ func (s *Skyhook) Run(filename string, globals map[string]interface{}) (map[stri
 }
 
 // Reset clears all cached scripts.
-func (s *Skyhook) Reset() {
+func (s *Starlight) Reset() {
 	s.mu.Lock()
 	s.plugins = map[string]*starlark.Program{}
 	s.mu.Unlock()
 }
 
 // Forget clears the cached script for the given filename.
-func (s *Skyhook) Forget(filename string) {
+func (s *Starlight) Forget(filename string) {
 	s.mu.Lock()
 	delete(s.plugins, filename)
 	s.mu.Unlock()

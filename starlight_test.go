@@ -1,4 +1,4 @@
-package skyhook
+package starlight
 
 import (
 	"reflect"

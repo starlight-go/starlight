@@ -102,7 +102,7 @@ func (g *GoStruct) String() string {
 
 // Type returns a short string describing the value's type.
 func (g *GoStruct) Type() string {
-	return fmt.Sprintf("skyhook_struct<%T>", g.v.Interface())
+	return fmt.Sprintf("starlight_struct<%T>", g.v.Interface())
 }
 
 // Freeze causes the value, and all values transitively
@@ -122,5 +122,5 @@ func (g *GoStruct) Truth() starlark.Bool {
 // Hash may fail if the value's type is not hashable, or if the value
 // contains a non-hashable value.
 func (g *GoStruct) Hash() (uint32, error) {
-	return 0, errors.New("skyhook_struct is not hashable")
+	return 0, errors.New("starlight_struct is not hashable")
 }

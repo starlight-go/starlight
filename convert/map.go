@@ -81,7 +81,7 @@ func (g *GoMap) String() string {
 
 // Type returns a short string describing the value's type.
 func (g *GoMap) Type() string {
-	return fmt.Sprintf("skyhook_map<%T>", g.v.Interface())
+	return fmt.Sprintf("starlight_map<%T>", g.v.Interface())
 }
 
 // Freeze causes the value, and all values transitively
@@ -103,7 +103,7 @@ func (g *GoMap) Truth() starlark.Bool {
 // Hash may fail if the value's type is not hashable, or if the value
 // contains a non-hashable value.
 func (g *GoMap) Hash() (uint32, error) {
-	return 0, errors.New("skyhook_map is not hashable")
+	return 0, errors.New("starlight_map is not hashable")
 }
 
 func (g *GoMap) Clear() error {
@@ -346,13 +346,13 @@ func dict_setdefault(fnname string, g *GoMap, args starlark.Tuple, _ []starlark.
 	if len(args) > 1 {
 		dflt = args[1]
 	}
-
-	if v, ok, err := g.Get(args[0]); err != nil {
+	k := args[0]
+	if v, ok, err := g.Get(k); err != nil {
 		return nil, err
 	} else if ok {
 		return v, nil
 	} else {
-		return dflt, g.SetKey(args[1], dflt)
+		return dflt, g.SetKey(k, dflt)
 	}
 }
 

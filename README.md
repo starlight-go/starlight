@@ -1,12 +1,11 @@
-# Skyhook [![GoDoc](https://godoc.org/github.com/go-skyhook/skyhook?status.svg)](https://godoc.org/github.com/go-skyhook/skyhook)
-
-<p align="center"><img src="https://user-images.githubusercontent.com/3185864/49255912-57317500-f3fb-11e8-9854-f217105a7248.png"/></p>
-
-<p align="center" style="font-weight:bold">!! Skyhook is still a WIP !!<p/>
+# <img src="https://user-images.githubusercontent.com/3185864/49534746-5b90de80-f890-11e8-9fd6-5417cf915c67.png"/> Starlight [![GoDoc](https://godoc.org/github.com/starlight-go/starlight?status.svg)](https://godoc.org/github.com/starlight-go/starlight)
 
 
-Skyhook is a wrapper library for google's [starlark](https://github.com/google/starlark-go)
-embedded python-like language. Skyhook is intended to give you an easier-to-use
+<p align="center" style="font-weight:bold">!! Starlight is still a WIP !!<p/>
+
+
+Starlight is a wrapper library for google's [starlark](https://github.com/google/starlark-go)
+embedded python-like language. Starlight is intended to give you an easier-to-use
 interface for running starlark scripts directly from your Go programs.  Starlark
 is a dialect of python, and has a Go native interpreter, so you can let your
 users extend your application without any external requirements.
@@ -20,7 +19,7 @@ You can call a script from go thusly:
 
 import (
     "fmt"
-    "github.com/go-skyhook/skyhook"
+    "github.com/starlight-go/starlight"
 )
 
 type contact struct {
@@ -35,36 +34,35 @@ func main() {
     hello := func(s string) string { 
         fmt.Println("hello " + s)
     }
-
     c := &contact{Name: "Bob"}
+    globals := map[string]interface{}{
+        "contact":c, 
+        "hello":hello,
+    }
 
     script := []byte(`
-        hello(c.Name)
-    `)
-
-    // please check errors
-    _, err := skyhook.Eval(
-    script, 
-    map[string]interface{}{
-        "c":c, 
-        "hello":hello,
-    })
+contact.Name = "Phil"
+hello(c.Name)
+`)
+    // errors will tell you about syntax/runtime errors.
+    _, err := starlight.Eval(script, globals, nil)
 }
 
-// prints "hello bob"
+// prints "hello Phil"
+// also the value of c's Name field will now be Bob when referenced from Go code as well.
 ```
 
 Eval expects either a filename, slice of bytes, or io.Reader as its argument containing the code, and then a map of global variables to populate the script with.
 
 ## Usage
 
-Skyhook.New creates a plugin cache that will read and compile scripts on the fly.
+Starlight.New creates a plugin cache that will read and compile scripts on the fly.
 
-Skyhook.Eval does all the compilation at call time.
+Starlight.Eval does all the compilation at call time.
 
 ## Inputs and Outputs
 
-Starlark scripts (and skyhook scripts by extension) use global variables in the
+Starlark scripts (and starlight scripts by extension) use global variables in the
 script as the input.
 
 Thus if args are `map[string]interface{}{"input":"hello"}`, the script may act
@@ -79,7 +77,7 @@ key "output" and with the value "hello world!".
 
 ## Types
 
-Skyhook automatically translates go types to starlark types. The types supported
+Starlight automatically translates go types to starlark types. The types supported
 are strings, bools, and any int, uint, or float type.  Also supported are
 structs, slices, arrays, and maps that use the aforementioned types. Conversion
 out of starlark scripts work in reverse much the same way.  You may also pass in
@@ -96,8 +94,8 @@ starlark are currently ignored.
 
 ## Caching
 
-Since parsing scripts is non-zero work, skyhook caches the scripts it finds
+Since parsing scripts is non-zero work, starlight caches the scripts it finds
 after the first time they get run, so that further runs of the script will not
-incur the disk read and parsing overhead. To make skyhook reparse a file
+incur the disk read and parsing overhead. To make starlight reparse a file
 (perhaps because it's changed) use the Forget method for the specific file, or
 Reset to remove all cached files.
