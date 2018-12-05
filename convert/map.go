@@ -33,16 +33,30 @@ func NewGoMap(m interface{}) *GoMap {
 }
 
 // SetKey implements starlark.HasSetKey.
-func (g *GoMap) SetKey(k, v starlark.Value) error {
+func (g *GoMap) SetKey(k, v starlark.Value) (err error) {
 	if g.frozen {
 		return fmt.Errorf("cannot insert into frozen map")
 	}
 	if g.numIt > 0 {
 		return fmt.Errorf("cannot insert into map during iteration")
 	}
-	key := FromValue(k)
-	val := FromValue(v)
-	g.v.SetMapIndex(reflect.ValueOf(key), reflect.ValueOf(val))
+
+	// if you set something funky on the map, it'll panic, so we recover it here.
+	defer func() {
+		r := recover()
+		if r == nil {
+			return
+		}
+		if e, ok := r.(error); ok {
+			err = e
+		} else {
+			err = fmt.Errorf("%v", r)
+		}
+	}()
+
+	key := reflect.ValueOf(FromValue(k)).Convert(g.v.Type().Key())
+	val := reflect.ValueOf(FromValue(v)).Convert(g.v.Type().Elem())
+	g.v.SetMapIndex(key, val)
 	return nil
 }
 
@@ -50,7 +64,7 @@ func (g *GoMap) SetKey(k, v starlark.Value) error {
 func (g *GoMap) Get(in starlark.Value) (out starlark.Value, found bool, err error) {
 	v := g.v.MapIndex(reflect.ValueOf(FromValue(in)))
 	if v.Kind() == reflect.Invalid {
-		return nil, false, nil
+		return starlark.None, false, nil
 	}
 	val, err := toValue(v)
 	if err != nil {
@@ -93,9 +107,14 @@ func (g *GoMap) Hash() (uint32, error) {
 }
 
 func (g *GoMap) Clear() error {
-	zero := reflect.Zero(g.v.Type().Elem())
+	if g.frozen {
+		return fmt.Errorf("cannot clear frozen map")
+	}
+	if g.numIt > 0 {
+		return fmt.Errorf("cannot clear map during iteration")
+	}
 	for _, k := range g.v.MapKeys() {
-		g.v.SetMapIndex(k, zero)
+		g.v.SetMapIndex(k, reflect.Value{})
 	}
 	return nil
 }
