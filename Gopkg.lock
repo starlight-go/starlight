@@ -3,13 +3,23 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/google/starlark"
-  packages = [".","resolve","syntax"]
-  revision = "13998aa7464402849172959d67ded8527c7d9370"
+  digest = "1:7c6d4fd247321e31c99af4313b352f4b5377f6bf93f91803c64eb6cb47b3d47c"
+  name = "go.starlark.net"
+  packages = [
+    "internal/compile",
+    "resolve",
+    "starlark",
+    "syntax",
+  ]
+  pruneopts = ""
+  revision = "5c7d5aa7ed56b35691775864b8a5e97329a916e5"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "97fd348f290d22484b7e136fb522f5aee937f7ae60937205c5e09e6a55fe9cd3"
+  input-imports = [
+    "go.starlark.net/resolve",
+    "go.starlark.net/starlark",
+  ]
   solver-name = "gps-cdcl"
   solver-version = 1
