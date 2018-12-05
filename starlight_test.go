@@ -1,20 +1,23 @@
 package starlight
 
 import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
 
 func TestConversion(t *testing.T) {
-	data := []byte(`output = input + " world" + bang()`)
+	dir, cleanup := makeScript(t, "out.star",
+		`output = input + " world" + bang()`)
 
-	read := func(string) ([]byte, error) { return data, nil }
+	defer cleanup()
 
 	bang := func() string { return "!" }
 
-	s := New([]string{"bar"})
-	s.readFile = read
-	actual, err := s.Run("foo.star", map[string]interface{}{
+	s := New(dir)
+	actual, err := s.Run("out.star", map[string]interface{}{
 		"input": "hello",
 		"bang":  bang,
 	})
@@ -40,7 +43,7 @@ func TestConversion(t *testing.T) {
 }
 
 func TestDirOrder(t *testing.T) {
-	s := New([]string{"testdata", "testdata/later"})
+	s := New("testdata", "testdata/later")
 	v, err := s.Run("foo.star", map[string]interface{}{"input": "hello"})
 	if err != nil {
 		t.Fatal(err)
@@ -52,7 +55,7 @@ func TestDirOrder(t *testing.T) {
 }
 
 func TestAllDirs(t *testing.T) {
-	s := New([]string{"testdata", "testdata/later"})
+	s := New("testdata", "testdata/later")
 	v, err := s.Run("bar.sky", map[string]interface{}{"input": "hello"})
 	if err != nil {
 		t.Fatal(err)
@@ -63,42 +66,14 @@ func TestAllDirs(t *testing.T) {
 	}
 }
 
-func TestFunc(t *testing.T) {
-	data := []byte(`
-def foo():
-	return " world!"
-
-output = input + foo()
-`)
-
-	read := func(string) ([]byte, error) { return data, nil }
-
-	s := New([]string{"bar"})
-	s.readFile = read
-	actual, err := s.Run("foo.star", map[string]interface{}{"input": "hello"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	v, ok := actual["output"]
-	if !ok {
-		t.Fatal("missing output value")
-	}
-	act, ok := v.(string)
-	if !ok {
-		t.Fatalf("output should be string but was %T", v)
-	}
-	if act != "hello world!" {
-		t.Fatalf("expected hello world but got %q", act)
-	}
-}
-
 func TestRerun(t *testing.T) {
-	data := []byte(`output = input + " world!"`)
+	dir, cleanup := makeScript(t, "foo.star",
+		`output = input + " world!"`)
 
-	read := func(string) ([]byte, error) { return data, nil }
+	defer cleanup()
 
-	s := New([]string{"bar"})
-	s.readFile = read
+	s := New(dir)
+
 	actual, err := s.Run("foo.star", map[string]interface{}{
 		"input": "hello",
 	})
@@ -121,7 +96,11 @@ func TestRerun(t *testing.T) {
 	}
 
 	// change script, shouldn't change output sicne we cached it
-	data = []byte(`output = "hi!"`)
+	err = ioutil.WriteFile(filepath.Join(dir, "foo.star"), []byte(`output = "hi!"`), 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	actual, err = s.Run("foo.star", map[string]interface{}{
 		"input": "goodbye",
 	})
@@ -146,7 +125,11 @@ func TestRerun(t *testing.T) {
 
 	// reset all, should change output
 	s.Reset()
-	data = []byte(`output = "bye!"`)
+	err = ioutil.WriteFile(filepath.Join(dir, "foo.star"), []byte(`output = "bye!"`), 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	actual, err = s.Run("foo.star", map[string]interface{}{
 		"input": "goodbye",
 	})
@@ -169,4 +152,19 @@ func TestEval(t *testing.T) {
 	if v["output"] != "hi!" {
 		t.Fatalf(`expected "hi!" but got %q`, v["output"])
 	}
+}
+
+func makeScript(t *testing.T, name, data string) (dir string, cleanup func()) {
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	filename := filepath.Join(dir, name)
+	t.Logf("creating new script at %v", filename)
+	err = ioutil.WriteFile(filename, []byte(data), 0600)
+	if err != nil {
+		os.RemoveAll(dir)
+		t.Fatal(err)
+	}
+	return dir, func() { os.RemoveAll(dir) }
 }

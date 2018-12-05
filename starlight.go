@@ -43,12 +43,11 @@ func Eval(src interface{}, globals map[string]interface{}, load LoadFunc) (map[s
 
 // Starlight is a script/plugin runner.
 type Starlight struct {
-	dirs     []string
-	readFile func(filename string) ([]byte, error)
-	load     LoadFunc
+	dirs  []string
+	cache *cache
 
-	mu      *sync.Mutex
-	plugins map[string]*starlark.Program
+	mu      sync.Mutex
+	scripts map[string]*starlark.Program
 }
 
 func run(p *starlark.Program, globals map[string]interface{}, load LoadFunc) (map[string]interface{}, error) {
@@ -63,17 +62,43 @@ func run(p *starlark.Program, globals map[string]interface{}, load LoadFunc) (ma
 	return convert.FromStringDict(ret), nil
 }
 
-// New returns a Starlight that looks in the given directories for plugin files to
-// run.  The directories are searched in order for files when Run is called.
-func New(dirs []string) *Starlight {
-	return &Starlight{
-		// TODO: make a load function here that works
-		load:     nil,
-		dirs:     dirs,
-		plugins:  map[string]*starlark.Program{},
-		readFile: ioutil.ReadFile,
-		mu:       &sync.Mutex{},
+// New returns a Starlight runner that looks in the given directories for plugin
+// files to run.  The directories are searched in order for files when Run is
+// called.  Calls to the script function load() will also look in these
+// directories. This function will panic if you give it no directories.
+func New(dirs ...string) *Starlight {
+	if len(dirs) == 0 {
+		panic(fmt.Errorf("no directories given"))
 	}
+	return newS(dirs, nil)
+}
+
+// WithGlobals returns a new Starlight runner that passes the listed global
+// values to scripts loaded with the load() script function.  Note that these
+// globals will *not* be passed to individual scripts you run unless you
+// explicitly pass them in the Run call.
+func WithGlobals(globals map[string]interface{}, dirs ...string) (*Starlight, error) {
+	if len(dirs) == 0 {
+		return nil, fmt.Errorf("no directories given")
+	}
+	g, err := convert.MakeStringDict(globals)
+	if err != nil {
+		return nil, err
+	}
+	return newS(dirs, g), nil
+}
+
+func newS(dirs []string, globals starlark.StringDict) *Starlight {
+	s := &Starlight{
+		dirs:    dirs,
+		scripts: map[string]*starlark.Program{},
+	}
+	s.cache = &cache{
+		cache:    make(map[string]*entry),
+		readFile: s.readFile,
+		globals:  globals,
+	}
+	return s
 }
 
 // Run looks for a file with the given filename, and runs it with the given globals
@@ -85,38 +110,56 @@ func (s *Starlight) Run(filename string, globals map[string]interface{}) (map[st
 		return nil, err
 	}
 	s.mu.Lock()
-	if p, ok := s.plugins[filename]; ok {
+	if p, ok := s.scripts[filename]; ok {
 		s.mu.Unlock()
 		return run(p, globals, s.load)
 	}
 	s.mu.Unlock()
 
+	b, err := s.readFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	_, p, err := starlark.SourceProgram(filename, b, dict.Has)
+	if err != nil {
+		return nil, err
+	}
+	s.mu.Lock()
+	s.scripts[filename] = p
+	s.mu.Unlock()
+	return run(p, globals, s.load)
+}
+
+func (s *Starlight) load(_ *starlark.Thread, module string) (starlark.StringDict, error) {
+	return s.cache.Load(module)
+}
+
+func (s *Starlight) readFile(filename string) ([]byte, error) {
+	var err error
+	var b []byte
 	for _, d := range s.dirs {
-		b, err := s.readFile(filepath.Join(d, filename))
+		b, err = ioutil.ReadFile(filepath.Join(d, filename))
 		if err == nil {
-			_, p, err := starlark.SourceProgram(filename, b, dict.Has)
-			if err != nil {
-				return nil, err
-			}
-			s.mu.Lock()
-			s.plugins[filename] = p
-			s.mu.Unlock()
-			return run(p, globals, s.load)
+			return b, nil
 		}
 	}
-	return nil, fmt.Errorf("cannot find plugin file %q in any plugin directoy", filename)
+	// guaranteed to have at least one directory, so there should be at least
+	// not found error here.
+	return nil, fmt.Errorf("cannot find file %q in any of the configured directories %q", filename, s.dirs)
 }
 
 // Reset clears all cached scripts.
 func (s *Starlight) Reset() {
 	s.mu.Lock()
-	s.plugins = map[string]*starlark.Program{}
+	s.scripts = map[string]*starlark.Program{}
+	s.cache.reset()
 	s.mu.Unlock()
 }
 
 // Forget clears the cached script for the given filename.
 func (s *Starlight) Forget(filename string) {
 	s.mu.Lock()
-	delete(s.plugins, filename)
+	s.cache.remove(filename)
+	delete(s.scripts, filename)
 	s.mu.Unlock()
 }
