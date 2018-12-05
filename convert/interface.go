@@ -9,7 +9,7 @@ import (
 )
 
 // MakeGoInterface converts the given value into a GoInterface.  This will panic
-// if the type is not bool, string, float type, int type, or uint type.
+// if the type is not a bool, string, float kind, int kind, or uint kind .
 func MakeGoInterface(v interface{}) *GoInterface {
 	val := reflect.ValueOf(v)
 	ifc, ok := makeGoInterface(val)
@@ -20,8 +20,13 @@ func MakeGoInterface(v interface{}) *GoInterface {
 }
 
 func makeGoInterface(val reflect.Value) (*GoInterface, bool) {
+	// we accept pointers to anything except structs, which should go through GoStruct.
+	if val.Kind() == reflect.Ptr && val.Elem().Kind() == reflect.Struct {
+		return nil, false
+	}
 	switch val.Kind() {
-	case reflect.Bool,
+	case reflect.Ptr,
+		reflect.Bool,
 		reflect.String,
 		reflect.Float32, reflect.Float64,
 		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
@@ -31,10 +36,9 @@ func makeGoInterface(val reflect.Value) (*GoInterface, bool) {
 	return nil, false
 }
 
-// GoInterface wraps a go value that has methods but no fields, such as an
-// interface value, or a named basic type like type ID int.  Types of this sort
-// will not behave as their base type (you can't add 2 to an ID, even if it is
-// an int underneath).
+// GoInterface wraps a go value to expose its methods to starlark scripts. Basic
+// types will not behave as their base type (you can't add 2 to an ID, even if
+// it is an int underneath).
 type GoInterface struct {
 	v reflect.Value
 }

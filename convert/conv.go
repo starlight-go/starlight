@@ -45,7 +45,7 @@ func toValue(val reflect.Value) (starlark.Value, error) {
 		if ok {
 			return ifc, nil
 		}
-		// TODO: maps and slices with methods
+		// TODO: maps, functions, and slices with methods
 	}
 
 	kind := val.Kind()
@@ -68,9 +68,7 @@ func toValue(val reflect.Value) (starlark.Value, error) {
 	case reflect.String:
 		return starlark.String(val.String()), nil
 	case reflect.Slice, reflect.Array:
-		// There's no way to tell if they want a tuple or a list, so we default
-		// to the more permissive list type.
-		return makeList(val)
+		return &GoSlice{v: val}, nil
 	case reflect.Struct:
 		return &GoStruct{v: val}, nil
 	}
@@ -111,6 +109,8 @@ func FromValue(v starlark.Value) interface{} {
 		return v.v.Interface()
 	case *GoMap:
 		return v.v.Interface()
+	case *GoSlice:
+		return v.v.Interface()
 	default:
 		// dunno, hope it's a custom type that the receiver knows how to deal
 		// with. This can happen with custom-written go types that implement
@@ -150,49 +150,6 @@ func FromTuple(v starlark.Tuple) []interface{} {
 		ret[i] = FromValue(v[i])
 	}
 	return ret
-}
-
-// MakeTuple makes a tuple from the given slice.  The acceptable types in the
-// slice are the same as ToValue.
-func MakeTuple(v interface{}) (starlark.Tuple, error) {
-	return makeTuple(reflect.ValueOf(v))
-}
-
-func makeTuple(val reflect.Value) (starlark.Tuple, error) {
-	vals, err := makeSliceVals(val)
-	if err != nil {
-		return nil, err
-	}
-	return starlark.Tuple(vals), nil
-}
-
-// MakeList makes a list from the given slice or array. The acceptable values
-// in the list are the same as ToValue.
-func MakeList(v interface{}) (*starlark.List, error) {
-	return makeList(reflect.ValueOf(v))
-}
-
-func makeList(val reflect.Value) (*starlark.List, error) {
-	vals, err := makeSliceVals(val)
-	if err != nil {
-		return nil, err
-	}
-	return starlark.NewList(vals), nil
-}
-
-func makeSliceVals(val reflect.Value) ([]starlark.Value, error) {
-	if val.Kind() != reflect.Slice && val.Kind() != reflect.Array {
-		panic(fmt.Errorf("value should be slice or array but was %v, %T", val.Kind(), val.Interface()))
-	}
-	vals := make([]starlark.Value, val.Len())
-	for i := 0; i < val.Len(); i++ {
-		val, err := toValue(val.Index(i))
-		if err != nil {
-			return nil, err
-		}
-		vals[i] = val
-	}
-	return vals, nil
 }
 
 // FromList creates a go slice from the given starlark list.

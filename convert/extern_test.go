@@ -373,11 +373,10 @@ func (c Celsius) ToF() Fahrenheit {
 type Fahrenheit float64
 
 func (f Fahrenheit) ToC() Celsius {
-	return Celsius(f - 32*5/9)
+	return Celsius((f - 32) * 5 / 9)
 }
 
 func TestGoInterface(t *testing.T) {
-
 	f := Fahrenheit(451)
 
 	globals := map[string]interface{}{
@@ -401,5 +400,33 @@ c = f.ToC()
 
 	if c != f.ToC() {
 		t.Fatalf("expected %v but got %v", f.ToC(), c)
+	}
+}
+
+func TestGoSlice(t *testing.T) {
+	vals := []string{"a", "b", "c", "d", "e"}
+
+	globals := map[string]interface{}{
+		"vals": vals,
+	}
+	code := []byte(`
+out = vals[1:-1]
+`)
+	output, err := skyhook.Eval(code, globals)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, ok := output["out"]
+	if !ok {
+		t.Fatal("missing value in output")
+	}
+	out, ok := v.([]string)
+	if !ok {
+		t.Fatalf("expected output to be []string but was %T", v)
+	}
+
+	expected := vals[1:4]
+	if reflect.DeepEqual(out, expected) {
+		t.Fatalf("expected %#v but got %#v", expected, out)
 	}
 }

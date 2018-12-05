@@ -14,8 +14,8 @@ import (
 // https://github.com/google/starlark-go/blob/master/starlark/value.go#L612
 // Which is Copyright 2017 The Bazel Authors and uses a BSD 3-clause license.
 
-// GoMap is a wrapper around a Go map that makes it satisfy starlark's map
-// interfaces.
+// GoMap is a wrapper around a Go map that makes it satisfy starlark's
+// expectations of a starlark dict.
 type GoMap struct {
 	v      reflect.Value
 	numIt  int
