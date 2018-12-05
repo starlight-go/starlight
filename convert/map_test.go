@@ -286,4 +286,90 @@ assert.Eq(x12["c"], 2)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	v, err := convert.ToValue(x12)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v.Freeze()
+	code = []byte(`
+assert.Eq(x12.setdefault("a", 1), 1) # no change, no error
+`)
+
+	_, err = starlight.Eval(code, map[string]interface{}{"x12": v, "assert": &assert{t: t}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	code = []byte(`
+x12.setdefault("d", 1)
+`)
+
+	_, err = starlight.Eval(code, map[string]interface{}{"x12": v}, nil)
+	expectErr(t, err, "cannot insert into frozen map")
+}
+
+func TestMapUpdate(t *testing.T) {
+	x13 := map[string]int{"a": 1}
+
+	globals := map[string]interface{}{
+		"assert": &assert{t: t},
+		"x13":    x13,
+		"toMap":  toMap,
+	}
+
+	code := []byte(`
+# dict.update
+x13.update(a=2, b=3)
+assert.Eq(x13, toMap({"a": 2, "b": 3}))
+x13.update([("b", 4), ("c", 5)])
+assert.Eq(x13, toMap({"a": 2, "b": 4, "c": 5}))
+x13.update({"c": 6, "d": 7})
+assert.Eq(x13, toMap({"a": 2, "b": 4, "c": 6, "d": 7}))
+`)
+
+	_, err := starlight.Eval(code, globals, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	v, err := convert.ToValue(x13)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v.Freeze()
+	code = []byte(`
+x13.update({"a": 8})
+`)
+
+	_, err = starlight.Eval(code, map[string]interface{}{"x13": v}, nil)
+	expectErr(t, err, "update: cannot insert into frozen map")
+}
+
+func TestMapSequence(t *testing.T) {
+	x14 := map[string]int{"a": 1, "b": 2}
+
+	globals := map[string]interface{}{
+		"assert": &assert{t: t},
+		"x14":    x14,
+		"toMap":  toMap,
+	}
+
+	code := []byte(`
+def keys(dict):
+  keys = []
+  for k in dict: keys.append(k)
+  return keys
+assert.Eq(True, "a" in keys(x14))
+assert.Eq(True, "b" in keys(x14))
+assert.Eq(2, len(x14))
+
+#
+# comprehension
+assert.Eq([x for x in x14], ["a", "b"])
+`)
+	_, err := starlight.Eval(code, globals, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 }

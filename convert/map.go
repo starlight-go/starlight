@@ -240,7 +240,7 @@ type mapIterator struct {
 
 func (it *mapIterator) Next(p *starlark.Value) bool {
 	if it.i < len(it.keys) {
-		v, err := toValue(it.g.v.MapIndex(it.keys[it.i]))
+		v, err := toValue(it.keys[it.i])
 		if err != nil {
 			panic(err)
 		}
