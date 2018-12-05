@@ -23,11 +23,7 @@ import (
 )
 
 type contact struct {
-    name string
-}
-
-func (c *contact) Name() string {
-    return c.name
+    Name string
 }
 
 func main() {
