@@ -9,6 +9,12 @@ import (
 	"go.starlark.net/starlark"
 )
 
+// Much of this code is derived in large part from starlark-go's List
+// implementation:
+// https://github.com/google/starlark-go/blob/master/starlark/value.go#L666
+// Which is Copyright 2017 The Bazel Authors and uses a BSD 3-clause license.
+
+// GoSlice is a wrapper around a Go slice to adapt it for use with starlark.
 type GoSlice struct {
 	v      reflect.Value
 	numIt  int
@@ -87,6 +93,7 @@ func (g *GoSlice) Slice(start, end, step int) starlark.Value {
 }
 
 func signOf(i int) int {
+	// yeah, sorry, I'm not doing this the hacker way.
 	switch {
 	case i == 0:
 		return 0
