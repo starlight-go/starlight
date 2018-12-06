@@ -143,7 +143,7 @@ func TestRerun(t *testing.T) {
 }
 
 func TestEval(t *testing.T) {
-	v, err := Eval(`output = hi()`, map[string]interface{}{
+	v, err := Eval([]byte(`output = hi()`), map[string]interface{}{
 		"hi": func() string { return "hi!" },
 	}, nil)
 	if err != nil {

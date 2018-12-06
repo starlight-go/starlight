@@ -34,7 +34,12 @@ func Eval(src interface{}, globals map[string]interface{}, load LoadFunc) (map[s
 	thread := &starlark.Thread{
 		Load: load,
 	}
-	dict, err = starlark.ExecFile(thread, "eval.sky", src, dict)
+	filename, ok := src.(string)
+	if ok {
+		dict, err = starlark.ExecFile(thread, filename, nil, dict)
+	} else {
+		dict, err = starlark.ExecFile(thread, "eval.sky", src, dict)
+	}
 	if err != nil {
 		return nil, err
 	}

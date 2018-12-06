@@ -65,7 +65,10 @@ func (g *GoSlice) Hash() (uint32, error) {
 }
 
 func (g *GoSlice) Clear() error {
-	g.v.SetLen(0)
+	if err := g.checkMutable("clear"); err != nil {
+		return err
+	}
+	g.v = g.v.Slice(0, 0)
 	return nil
 }
 
@@ -75,6 +78,15 @@ func (g *GoSlice) Index(i int) starlark.Value {
 		panic(err)
 	}
 	return v
+}
+
+func (g *GoSlice) SetIndex(index int, v starlark.Value) error {
+	if err := g.checkMutable("assign to"); err != nil {
+		return err
+	}
+	val := conv(v, g.v.Type().Elem())
+	g.v.Index(index).Set(val)
+	return nil
 }
 
 func (g *GoSlice) Slice(start, end, step int) starlark.Value {

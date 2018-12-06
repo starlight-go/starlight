@@ -95,3 +95,10 @@ after the first time they get run, so that further runs of the script will not
 incur the disk read and parsing overhead. To make starlight reparse a file
 (perhaps because it has changed) use the Forget method for the specific file, or
 Reset to remove all cached files.
+
+## Example
+
+The [example](https://github.com/starlight-go/starlight/tree/master/example)
+directory shows an example of using starlight to run scripts that modify the
+output of a running web server.
+

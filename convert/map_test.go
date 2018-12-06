@@ -120,8 +120,9 @@ func TestMapKeysValues(t *testing.T) {
 assert.Eq(True, "a" in x8.keys())
 assert.Eq(True, "b" in x8.keys())
 assert.Eq(2, len(x8.keys()))
-
-assert.Eq(x8.values(), [1, 2])
+assert.Eq(True, 1 in x8.values())
+assert.Eq(True, 2 in x8.values())
+assert.Eq(2, len(x8.values()))
 `)
 	_, err := starlight.Eval(code, globals, nil)
 	if err != nil {
