@@ -11,7 +11,7 @@ is a dialect of python, and has a Go native interpreter, so you can let your
 users extend your application without any external requirements.
 
 
-## Example
+## Sample
 
 You can call a script from go thusly:
 
@@ -27,18 +27,15 @@ type contact struct {
 }
 
 func main() {
-    hello := func(s string) string { 
-        fmt.Println("hello " + s)
-    }
     c := &contact{Name: "Bob"}
     globals := map[string]interface{}{
         "contact":c, 
-        "hello":hello,
+        "Println":fmt.Println,
     }
 
     script := []byte(`
 contact.Name = "Phil"
-hello(c.Name)
+Println("hello " + contact.Name)
 `)
     // errors will tell you about syntax/runtime errors.
     _, err := starlight.Eval(script, globals, nil)
