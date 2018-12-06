@@ -49,7 +49,7 @@ func toValue(val reflect.Value) (starlark.Value, error) {
 	}
 
 	kind := val.Kind()
-	if val.Kind() == reflect.Ptr || val.Kind() == reflect.Interface {
+	if kind == reflect.Ptr {
 		kind = val.Elem().Kind()
 	}
 	switch kind {
@@ -71,6 +71,8 @@ func toValue(val reflect.Value) (starlark.Value, error) {
 		return &GoSlice{v: val}, nil
 	case reflect.Struct:
 		return &GoStruct{v: val}, nil
+	case reflect.Interface:
+		return &GoInterface{v: val}, nil
 	}
 
 	return nil, fmt.Errorf("type %T is not a supported starlark type", val.Interface())
