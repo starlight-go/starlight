@@ -440,27 +440,32 @@ iterator3()
 	_, err = starlight.Eval(code, globals, nil)
 	expectErr(t, err, "cannot insert into map during iteration")
 
-	// 	xx = map[int]int{1: 2, 2: 4}
+	xx = map[int]int{1: 2, 2: 4}
 
-	// 	globals = map[string]interface{}{
-	// 		"x":      xx,
-	// 		"assert": &assert{t: t},
-	// 		"intMap": intMap,
-	// 	}
-	// 	code = []byte(`
-	// # This assignment is not a modification-during-iteration:
-	// # the sequence x should be completely iterated before
-	// # the assignment occurs.
-	// def f():
-	// 	a, x[0] = x
-	// 	assert.Eq(a, 1)
-	// 	assert.Eq(x, intMap({1: 2, 2: 4, 0: 2}))
-	// f()
-	// `)
-	// 	_, err = starlight.Eval(code, globals, nil)
-	// 	if err != nil {
-	// 		t.Fatal(err)
-	// 	}
+	globals = map[string]interface{}{
+		"x":      xx,
+		"assert": &assert{t: t},
+		"intMap": intMap,
+	}
+	code = []byte(`
+# This assignment is not a modification-during-iteration:
+# the sequence x should be completely iterated before
+# the assignment occurs.
+def f():
+	# assign two of x's keys to a, and x[0]
+	# which will add a value to x with the key 0.
+	keys = x.keys()
+	a, x[0] = x
+	assert.Eq(True, a in keys)
+	assert.Eq(True, x[0] in keys)
+	assert.Eq(False, x[0] == a)
+	assert.Eq(x, intMap({1: 2, 2: 4, 0: 2}))
+f()
+	`)
+	_, err = starlight.Eval(code, globals, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 // intMap converts from a starlark-created map to a map[int]int
