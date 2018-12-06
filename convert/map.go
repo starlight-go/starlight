@@ -62,7 +62,7 @@ func (g *GoMap) SetKey(k, v starlark.Value) (err error) {
 
 // Get implements starlark.Mapping.
 func (g *GoMap) Get(in starlark.Value) (out starlark.Value, found bool, err error) {
-	v := g.v.MapIndex(reflect.ValueOf(FromValue(in)))
+	v := g.v.MapIndex(reflect.ValueOf(FromValue(in)).Convert(g.v.Type().Key()))
 	if v.Kind() == reflect.Invalid {
 		return starlark.None, false, nil
 	}
@@ -127,7 +127,7 @@ func (g *GoMap) Delete(k starlark.Value) (v starlark.Value, found bool, err erro
 		return nil, false, fmt.Errorf("cannot delete from map during iteration")
 	}
 	i := FromValue(k)
-	key := reflect.ValueOf(i)
+	key := reflect.ValueOf(i).Convert(g.v.Type().Key())
 	return g.delete(key)
 }
 

@@ -58,13 +58,38 @@ x6.pop("c")
 
 func TestMapPopItem(t *testing.T) {
 	x7 := map[string]int{"a": 1, "b": 2}
+
+	var a, b bool
+
+	check := func(s string, i int) {
+		if s == "a" && i == 1 {
+			if a {
+				t.Fatal("a popped twoce")
+			}
+			a = true
+			return
+		}
+		if s == "b" && i == 2 {
+			if b {
+				t.Fatal("b popped twice")
+			}
+			b = true
+			return
+		}
+		t.Fatalf("something weird returned: %v, %v", s, i)
+	}
+
 	globals := map[string]interface{}{
 		"assert": &assert{t: t},
 		"x7":     x7,
+		"check":  check,
 	}
 
 	code := []byte(`
-assert.Eq([x7.popitem(), x7.popitem()], [("a", 1), ("b", 2)])
+x, y = x7.popitem()
+check(x, y)
+x1, y1 = x7.popitem()
+check(x1, y1)
 assert.Eq(len(x7), 0)
 `)
 	_, err := starlight.Eval(code, globals, nil)
@@ -366,10 +391,92 @@ assert.Eq(2, len(x14))
 
 #
 # comprehension
-assert.Eq([x for x in x14], ["a", "b"])
+kk = [x for x in x14]
+assert.Eq(True, "a" in kk)
+assert.Eq(True, "b" in kk)
+assert.Eq(2, len(kk))
 `)
 	_, err := starlight.Eval(code, globals, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestMapIteratorInvalidation(t *testing.T) {
+	xx := map[int]int{1: 1, 2: 1}
+
+	globals := map[string]interface{}{
+		"xx": xx,
+	}
+
+	code := []byte(`
+def iterator1():
+  for k in xx:
+	xx[2*k] = xx[k]
+iterator1()
+`)
+	_, err := starlight.Eval(code, globals, nil)
+	expectErr(t, err, "cannot insert into map during iteration")
+
+	code = []byte(`
+def iterator2():
+	for k in xx:
+		xx.pop(k)
+iterator2()
+`)
+	_, err = starlight.Eval(code, globals, nil)
+	expectErr(t, err, "cannot delete from map during iteration")
+
+	code = []byte(`
+def iterator3():
+	def f(d):
+	  d[3] = 3
+	_ = [f(xx) for x in xx]
+iterator3()
+`)
+	_, err = starlight.Eval(code, globals, nil)
+	expectErr(t, err, "cannot insert into map during iteration")
+
+	xx = map[int]int{1: 2, 2: 4}
+
+	globals = map[string]interface{}{
+		"x":      xx,
+		"assert": &assert{t: t},
+		"intMap": intMap,
+	}
+	code = []byte(`
+# This assignment is not a modification-during-iteration:
+# the sequence x should be completely iterated before
+# the assignment occurs.
+def f():
+	a, x[0] = x
+	assert.Eq(a, 1)
+	assert.Eq(x, intMap({1: 2, 2: 4, 0: 2}))
+f()
+`)
+	_, err = starlight.Eval(code, globals, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// intMap converts from a starlark-created map to a map[int]int
+func intMap(m map[interface{}]interface{}) (map[int]int, error) {
+	out := map[int]int{}
+	for k, v := range m {
+		key, ok := k.(int64)
+		if !ok {
+			return nil, fmt.Errorf("expected starlark.Int key, but got %#v (%T)", k, k)
+		}
+		i, ok := v.(starlark.Int)
+		if !ok {
+			return nil, fmt.Errorf("expected starlark int val, but got %#v (%T)", v, v)
+		}
+		val, ok := i.Int64()
+		if !ok {
+			return nil, fmt.Errorf("starlark int can't be represented as an int64: %s", i)
+		}
+		out[int(key)] = int(val)
+	}
+	return out, nil
 }
