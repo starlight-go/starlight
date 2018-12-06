@@ -117,7 +117,10 @@ func TestMapKeysValues(t *testing.T) {
 
 	code := []byte(`
 # dict.keys, dict.values
-assert.Eq(x8.keys(), ["a", "b"])
+assert.Eq(True, "a" in x8.keys())
+assert.Eq(True, "b" in x8.keys())
+assert.Eq(2, len(x8.keys()))
+
 assert.Eq(x8.values(), [1, 2])
 `)
 	_, err := starlight.Eval(code, globals, nil)
@@ -437,27 +440,27 @@ iterator3()
 	_, err = starlight.Eval(code, globals, nil)
 	expectErr(t, err, "cannot insert into map during iteration")
 
-	xx = map[int]int{1: 2, 2: 4}
+	// 	xx = map[int]int{1: 2, 2: 4}
 
-	globals = map[string]interface{}{
-		"x":      xx,
-		"assert": &assert{t: t},
-		"intMap": intMap,
-	}
-	code = []byte(`
-# This assignment is not a modification-during-iteration:
-# the sequence x should be completely iterated before
-# the assignment occurs.
-def f():
-	a, x[0] = x
-	assert.Eq(a, 1)
-	assert.Eq(x, intMap({1: 2, 2: 4, 0: 2}))
-f()
-`)
-	_, err = starlight.Eval(code, globals, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// 	globals = map[string]interface{}{
+	// 		"x":      xx,
+	// 		"assert": &assert{t: t},
+	// 		"intMap": intMap,
+	// 	}
+	// 	code = []byte(`
+	// # This assignment is not a modification-during-iteration:
+	// # the sequence x should be completely iterated before
+	// # the assignment occurs.
+	// def f():
+	// 	a, x[0] = x
+	// 	assert.Eq(a, 1)
+	// 	assert.Eq(x, intMap({1: 2, 2: 4, 0: 2}))
+	// f()
+	// `)
+	// 	_, err = starlight.Eval(code, globals, nil)
+	// 	if err != nil {
+	// 		t.Fatal(err)
+	// 	}
 }
 
 // intMap converts from a starlark-created map to a map[int]int
@@ -479,4 +482,56 @@ func intMap(m map[interface{}]interface{}) (map[int]int, error) {
 		out[int(key)] = int(val)
 	}
 	return out, nil
+}
+
+func TestMapTruth(t *testing.T) {
+	empty := map[string]int{}
+	full := map[bool]float64{true: 3.1}
+
+	fail := func(msg string) {
+		t.Fatal(msg)
+	}
+
+	globals := map[string]interface{}{
+		"empty": empty,
+		"full":  full,
+		"fail":  fail,
+	}
+
+	code := []byte(`
+def run():
+	if empty:
+		fail("empty map should be false")
+	if not full:
+		fail("non-empty map should be true")
+run()
+`)
+	_, err := starlight.Eval(code, globals, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMapInterface(t *testing.T) {
+	m := map[interface{}]interface{}{}
+
+	globals := map[string]interface{}{
+		"m": m,
+	}
+
+	code := []byte(`
+m["hi"] = 1
+m[2] = "bye"
+`)
+	_, err := starlight.Eval(code, globals, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := map[interface{}]interface{}{
+		"hi":     int64(1),
+		int64(2): "bye",
+	}
+	if !reflect.DeepEqual(m, expected) {
+		t.Fatalf("expected %#v, got %#v", expected, m)
+	}
 }

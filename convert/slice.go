@@ -226,8 +226,8 @@ func list_extend(fnname string, g *GoSlice, args starlark.Tuple, kwargs []starla
 	it := iterable.Iterate()
 	defer it.Done()
 	for it.Next(&val) {
-		v := FromValue(val)
-		g.v = reflect.Append(g.v, reflect.ValueOf(v))
+		v := conv(val, g.v.Type().Elem())
+		g.v = reflect.Append(g.v, v)
 	}
 
 	return starlark.None, nil
@@ -280,7 +280,7 @@ func list_insert(fnname string, g *GoSlice, args starlark.Tuple, kwargs []starla
 		index += g.v.Len()
 	}
 
-	val := reflect.ValueOf(FromValue(args[1]))
+	val := conv(args[1], g.v.Type().Elem())
 	if index >= g.Len() {
 		g.v = reflect.Append(g.v, val)
 	} else {

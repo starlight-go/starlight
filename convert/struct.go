@@ -77,17 +77,13 @@ func (g *GoStruct) AttrNames() []string {
 
 // SetField sets the struct field with the given name with the given value.
 func (g *GoStruct) SetField(name string, val starlark.Value) error {
-	i := FromValue(val)
 	v := g.v
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
 	field := v.FieldByName(name)
 	if field.CanSet() {
-		val := reflect.ValueOf(i)
-		if field.Type() != val.Type() {
-			val = val.Convert(field.Type())
-		}
+		val := conv(val, field.Type())
 		field.Set(val)
 		return nil
 	}

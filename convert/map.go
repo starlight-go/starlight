@@ -54,15 +54,15 @@ func (g *GoMap) SetKey(k, v starlark.Value) (err error) {
 		}
 	}()
 
-	key := reflect.ValueOf(FromValue(k)).Convert(g.v.Type().Key())
-	val := reflect.ValueOf(FromValue(v)).Convert(g.v.Type().Elem())
+	key := conv(k, g.v.Type().Key())
+	val := conv(v, g.v.Type().Elem())
 	g.v.SetMapIndex(key, val)
 	return nil
 }
 
 // Get implements starlark.Mapping.
 func (g *GoMap) Get(in starlark.Value) (out starlark.Value, found bool, err error) {
-	v := g.v.MapIndex(reflect.ValueOf(FromValue(in)).Convert(g.v.Type().Key()))
+	v := g.v.MapIndex(conv(in, g.v.Type().Key()))
 	if v.Kind() == reflect.Invalid {
 		return starlark.None, false, nil
 	}
@@ -126,8 +126,7 @@ func (g *GoMap) Delete(k starlark.Value) (v starlark.Value, found bool, err erro
 	if g.numIt > 0 {
 		return nil, false, fmt.Errorf("cannot delete from map during iteration")
 	}
-	i := FromValue(k)
-	key := reflect.ValueOf(i).Convert(g.v.Type().Key())
+	key := conv(k, g.v.Type().Key())
 	return g.delete(key)
 }
 
@@ -433,4 +432,13 @@ func updateDict(dict *GoMap, updates starlark.Tuple, kwargs []starlark.Tuple) er
 	}
 
 	return nil
+}
+
+// conv tries to convert v to t if v is not assignable to t.
+func conv(v starlark.Value, t reflect.Type) reflect.Value {
+	out := reflect.ValueOf(FromValue(v))
+	if !out.Type().AssignableTo(t) {
+		return out.Convert(t)
+	}
+	return out
 }

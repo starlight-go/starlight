@@ -276,6 +276,9 @@ func MakeStarFn(name string, gofn interface{}) *starlark.Builtin {
 }
 
 func makeStarFn(name string, gofn reflect.Value) *starlark.Builtin {
+	if gofn.Type().IsVariadic() {
+		return makeVariadicStarFn(name, gofn)
+	}
 	return starlark.NewBuiltin(name, func(thread *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
 		if len(args) != gofn.Type().NumIn() {
 			return starlark.None, fmt.Errorf("expected %d args but got %d", gofn.Type().NumIn(), len(args))
@@ -285,39 +288,77 @@ func makeStarFn(name string, gofn reflect.Value) *starlark.Builtin {
 		for i, v := range vals {
 			val := reflect.ValueOf(v)
 			argT := gofn.Type().In(i)
-			if val.Type() != argT {
+			if !val.Type().AssignableTo(argT) {
 				val = val.Convert(argT)
 			}
 			rvs = append(rvs, val)
 		}
 		out := gofn.Call(rvs)
-		if len(out) == 0 {
-			return starlark.None, nil
+		return makeOut(out)
+	})
+}
+
+func makeOut(out []reflect.Value) (starlark.Value, error) {
+	if len(out) == 0 {
+		return starlark.None, nil
+	}
+	last := out[len(out)-1]
+	var err error
+	if last.Type() == errType {
+		if v := last.Interface(); v != nil {
+			err = v.(error)
 		}
-		last := out[len(out)-1]
-		var err error
-		if last.Type() == errType {
-			if v := last.Interface(); v != nil {
-				err = v.(error)
+		out = out[:len(out)-1]
+	}
+	if len(out) == 1 {
+		v, err2 := toValue(out[0])
+		if err2 != nil {
+			return starlark.None, err2
+		}
+		return v, err
+	}
+	res := make([]starlark.Value, 0, len(out))
+	// tuple-up multple values
+	for i := range out {
+		val, err := toValue(out[i])
+		if err != nil {
+			return starlark.None, err
+		}
+		res = append(res, val)
+	}
+	return starlark.Tuple(res), nil
+}
+
+func makeVariadicStarFn(name string, gofn reflect.Value) *starlark.Builtin {
+	return starlark.NewBuiltin(name, func(thread *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+		minArgs := gofn.Type().NumIn() - 1
+		if len(args) < minArgs {
+			return starlark.None, fmt.Errorf("expected at least %d args but got %d", minArgs, len(args))
+		}
+		vals := FromTuple(args)
+		rvs := make([]reflect.Value, 0, len(args))
+
+		// grab all the non-variadics first
+		for i := 0; i < minArgs; i++ {
+			val := reflect.ValueOf(vals[i])
+			argT := gofn.Type().In(i)
+			if !val.Type().AssignableTo(argT) {
+				val = val.Convert(argT)
 			}
-			out = out[:len(out)-1]
+			rvs = append(rvs, val)
 		}
-		if len(out) == 1 {
-			v, err2 := toValue(out[0])
-			if err2 != nil {
-				return starlark.None, err2
+		// last "in" type by definition must be a slice of something. We need to
+		// know what something so we can convert things as needed.
+		vtype := gofn.Type().In(gofn.Type().NumIn() - 1).Elem()
+		// the rest of the args need to be batched into a slice for the variadic
+		for i := minArgs; i < len(vals); i++ {
+			val := reflect.ValueOf(vals[i])
+			if !val.Type().AssignableTo(vtype) {
+				val = val.Convert(vtype)
 			}
-			return v, err
+			rvs = append(rvs, val)
 		}
-		res := make([]starlark.Value, 0, len(out))
-		// tuple-up multple values
-		for i := range out {
-			val, err := toValue(out[i])
-			if err != nil {
-				return starlark.None, err
-			}
-			res = append(res, val)
-		}
-		return starlark.Tuple(res), nil
+		out := gofn.Call(rvs)
+		return makeOut(out)
 	})
 }
