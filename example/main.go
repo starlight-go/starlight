@@ -11,7 +11,7 @@ import (
 func main() {
 	http.HandleFunc("/", handle)
 	port := "8080"
-	fmt.Printf("running web server on http://localhost:%v\n", port)
+	fmt.Printf("running web server on http://localhost:%v?name=starlight&repeat=3\n", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatal(err)
 	}
