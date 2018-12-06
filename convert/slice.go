@@ -211,9 +211,8 @@ func list_append(fnname string, g *GoSlice, args starlark.Tuple, kwargs []starla
 	if err := g.checkMutable("append to"); err != nil {
 		return nil, err
 	}
-
-	v := FromValue(args[0])
-	g.v = reflect.Append(g.v, reflect.ValueOf(v))
+	v := conv(args[0], g.v.Type().Elem())
+	g.v = reflect.Append(g.v, v)
 	return starlark.None, nil
 }
 
@@ -227,12 +226,15 @@ func list_clear(fnname string, g *GoSlice, args starlark.Tuple, kwargs []starlar
 
 // https://github.com/google/starlark-go/blob/master/doc/spec.md#list·extend
 func list_extend(fnname string, g *GoSlice, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-	var iterable starlark.Iterable
 	if len(args) != 1 {
 		return nil, fmt.Errorf("extend: got %d arguments, want 1", len(args))
 	}
 	if err := g.checkMutable("extend"); err != nil {
 		return nil, err
+	}
+	iterable, ok := args[0].(starlark.Iterable)
+	if !ok {
+		return nil, fmt.Errorf("argument is not iterable: %#v", args[0])
 	}
 	var val starlark.Value
 	it := iterable.Iterate()
@@ -247,7 +249,6 @@ func list_extend(fnname string, g *GoSlice, args starlark.Tuple, kwargs []starla
 
 // https://github.com/google/starlark-go/blob/master/doc/spec.md#list·index
 func list_index(fnname string, g *GoSlice, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-	var value interface{}
 	var start_, end_ starlark.Value
 	switch len(args) {
 	default:
@@ -259,20 +260,20 @@ func list_index(fnname string, g *GoSlice, args starlark.Tuple, kwargs []starlar
 		start_ = args[1]
 		fallthrough
 	case 1:
-		value = FromValue(args[0])
+		// ok
 	}
-
+	value := conv(args[0], g.v.Type().Elem())
 	start, end, err := indices(start_, end_, g.v.Len())
 	if err != nil {
 		return nil, fmt.Errorf("%s: %s", fnname, err)
 	}
 
 	for i := start; i < end; i++ {
-		if reflect.DeepEqual(g.v.Index(i).Interface(), value) {
+		if reflect.DeepEqual(g.v.Index(i).Interface(), value.Interface()) {
 			return starlark.MakeInt(i), nil
 		}
 	}
-	return nil, fmt.Errorf("index: value not in list")
+	return nil, fmt.Errorf("index: value %v not in list", value)
 }
 
 // https://github.com/google/starlark-go/blob/master/doc/spec.md#list·insert

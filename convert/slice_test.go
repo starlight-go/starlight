@@ -126,6 +126,100 @@ assert.Eq(x3, intSlice([0, 2, 5]))
 	expectFails(t, tests, globals)
 }
 
+func TestSliceComprehensions(t *testing.T) {
+	x3 := []int{1, 2, 3}
+
+	globals := map[string]interface{}{
+		"assert":   &assert{t: t},
+		"x3":       x3,
+		"intSlice": intSlice,
+	}
+
+	code := []byte(`
+assert.Eq([2 * x for x in x3], [2, 4, 6])
+`)
+	_, err := starlight.Eval(code, globals, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSliceAppend(t *testing.T) {
+	x3 := []int{1, 2, 3}
+
+	globals := map[string]interface{}{
+		"assert":   &assert{t: t},
+		"x3":       x3,
+		"intSlice": intSlice,
+	}
+
+	code := []byte(`
+x3.append(4)
+x3.append(5)
+x3.append(6)
+assert.Eq(x3, intSlice([1, 2, 3, 4, 5, 6]))
+`)
+	_, err := starlight.Eval(code, globals, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSliceExtend(t *testing.T) {
+	x3 := []int{1, 2, 3}
+
+	globals := map[string]interface{}{
+		"assert":   &assert{t: t},
+		"x3":       x3,
+		"intSlice": intSlice,
+	}
+
+	code := []byte(`
+x3.extend([4,5,6])
+assert.Eq(x3, intSlice([1, 2, 3, 4, 5, 6]))
+`)
+	_, err := starlight.Eval(code, globals, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSliceIndex(t *testing.T) {
+	bananas := []string{"b", "a", "n", "a", "n", "a", "s"}
+
+	globals := map[string]interface{}{
+		"assert":  &assert{t: t},
+		"bananas": bananas,
+	}
+
+	code := []byte(`
+assert.Eq(bananas.index('a'), 1) # bAnanas
+# start
+assert.Eq(bananas.index('a', -1000), 1) # bAnanas
+assert.Eq(bananas.index('a', 0), 1)     # bAnanas
+assert.Eq(bananas.index('a', 1), 1)     # bAnanas
+assert.Eq(bananas.index('a', 2), 3)     # banAnas
+assert.Eq(bananas.index('a', 3), 3)     # banAnas
+assert.Eq(bananas.index('b', 0), 0)     # Bananas
+assert.Eq(bananas.index('n', -3), 4)    # banaNas
+assert.Eq(bananas.index('s', -2), 6)    # bananaS
+# start, end
+assert.Eq(bananas.index('s', -1000, 7), 6) # bananaS
+`)
+	_, err := starlight.Eval(code, globals, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// assert.fails(lambda: bananas.index('b', 1), "value not in list")
+// assert.fails(lambda: bananas.index('n', -2), "value not in list")
+
+// assert.fails(lambda: bananas.index('d'), "value not in list")
+
+// assert.fails(lambda: bananas.index('s', -1000, 6), "value not in list")
+// assert.fails(lambda: bananas.index('d', -1000, 1000), "value not in list")
+
 // func TestSlicePlus(t *testing.T) {
 // 	x := []int{1, 2, 3}
 
