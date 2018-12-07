@@ -46,17 +46,22 @@ type GoInterface struct {
 // Attr returns a starlark value that wraps the method or field with the given
 // name.
 func (g *GoInterface) Attr(name string) (starlark.Value, error) {
+	switch name {
+	case "toInt":
+		return MakeStarFn(name, g.ToInt), nil
+	case "toString":
+		return MakeStarFn(name, g.ToString), nil
+	case "toFloat":
+		return MakeStarFn(name, g.ToFloat), nil
+	case "toUint":
+		return MakeStarFn(name, g.ToUint), nil
+	case "toBool":
+		return MakeStarFn(name, g.ToBool), nil
+	}
+
 	method := g.v.MethodByName(name)
 	if method.Kind() != reflect.Invalid {
 		return makeStarFn(name, method), nil
-	}
-	v := g.v
-	if g.v.Kind() == reflect.Ptr {
-		v = v.Elem()
-		method = g.v.MethodByName(name)
-		if method.Kind() != reflect.Invalid {
-			return makeStarFn(name, method), nil
-		}
 	}
 	return nil, nil
 }
@@ -103,6 +108,8 @@ func (g *GoInterface) Freeze() {}
 // Truth returns the truth value of an object.
 func (g *GoInterface) Truth() starlark.Bool {
 	switch g.v.Kind() {
+	case reflect.Ptr:
+		return starlark.Bool(!g.v.IsNil())
 	case reflect.Bool:
 		return starlark.Bool(g.v.Bool())
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -129,25 +136,54 @@ func (g *GoInterface) Hash() (uint32, error) {
 // Note that there is no ToBool because Truth() already serves that purpose.
 
 // ToInt converts the interface value into a starlark int.  This will fail if
-// the underlying type is not an int or uint type (including if the underlying
-// type is a pointer to an int type).
-func (g *GoInterface) ToInt() (starlark.Int, error) {
-	switch g.v.Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return starlark.MakeInt64(g.v.Int()), nil
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return starlark.MakeUint64(g.v.Uint()), nil
+// the underlying type is not an int type or pointer to an int type.
+func (g *GoInterface) ToInt() (int64, error) {
+	v := g.v
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
 	}
-	return starlark.Int{}, fmt.Errorf("can't convert type %T to int64", g.v)
+	switch v.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return v.Int(), nil
+	}
+	return 0, fmt.Errorf("can't convert type %T to int64", v.Interface())
+}
+
+// ToBool converts the interface value into a starlark bool.  This will fail if
+// the underlying type is not a bool type or pointer to a bool type.
+func (g *GoInterface) ToBool() (bool, error) {
+	v := g.v
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	switch v.Kind() {
+	case reflect.Bool:
+		return v.Bool(), nil
+	}
+	return false, fmt.Errorf("can't convert type %T to bool", v.Interface())
+}
+
+// ToUint converts the interface value into a starlark int.  This will fail if
+// the underlying type is not a uint type or pointer to an uint type.
+func (g *GoInterface) ToUint() (uint64, error) {
+	v := g.v
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	switch v.Kind() {
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return v.Uint(), nil
+	}
+	return 0, fmt.Errorf("can't convert type %T to uint64", v.Interface())
 }
 
 // ToString converts the interface value into a starlark string.  This will fail if
 // the underlying type is not a string (including if the underlying type is a
 // pointer to a string).
-func (g *GoInterface) ToString() (starlark.String, error) {
+func (g *GoInterface) ToString() (string, error) {
 	switch g.v.Kind() {
 	case reflect.String:
-		return starlark.String(g.v.String()), nil
+		return g.v.String(), nil
 	}
 	return "", fmt.Errorf("can't convert type %T to string", g.v)
 }
@@ -155,10 +191,10 @@ func (g *GoInterface) ToString() (starlark.String, error) {
 // ToFloat converts the interface value into a starlark float.  This will fail
 // if the underlying type is not a float type (including if the underlying type
 // is a pointer to a float).
-func (g *GoInterface) ToFloat() (starlark.Float, error) {
+func (g *GoInterface) ToFloat() (float64, error) {
 	switch g.v.Kind() {
 	case reflect.Float32, reflect.Float64:
-		return starlark.Float(g.v.Float()), nil
+		return g.v.Float(), nil
 	}
 	return 0, fmt.Errorf("can't convert type %T to float64", g.v)
 }

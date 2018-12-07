@@ -11,16 +11,6 @@ import (
 	"go.starlark.net/starlark"
 )
 
-type assert struct {
-	t *testing.T
-}
-
-func (a *assert) Eq(expected, got interface{}) {
-	if !reflect.DeepEqual(expected, got) {
-		a.t.Fatalf("expected %#v (%T) to be equal to %#v (%T)", expected, expected, got, got)
-	}
-}
-
 // the majority of these tests mimic starlark-go's
 // https://github.com/google/starlark-go/blob/master/starlark/testdata/dict.star
 

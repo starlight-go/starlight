@@ -64,20 +64,6 @@ assert.Eq(abc[2], "c")
 	expectFails(t, tests, globals)
 }
 
-type fail struct {
-	code string
-	err  string
-}
-
-func expectFails(t *testing.T, tests []fail, globals map[string]interface{}) {
-	for _, f := range tests {
-		t.Run(f.code, func(t *testing.T) {
-			_, err := starlight.Eval([]byte(f.code), globals, nil)
-			expectErr(t, err, f.err)
-		})
-	}
-}
-
 func intSlice(vals []interface{}) ([]int, error) {
 	ret := make([]int, len(vals))
 	for i, v := range vals {
@@ -210,15 +196,148 @@ assert.Eq(bananas.index('s', -1000, 7), 6) # bananaS
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	tests := []fail{
+		{`bananas.index('b', 1)`, `index: value b not in list`},
+		{`bananas.index('n', -2)`, `index: value n not in list`},
+		{`bananas.index('d')`, `index: value d not in list`},
+		{`bananas.index('s', -1000, 6)`, `index: value s not in list`},
+		{`bananas.index('d', -1000, 1000)`, `index: value d not in list`},
+	}
+	expectFails(t, tests, globals)
 }
 
-// assert.fails(lambda: bananas.index('b', 1), "value not in list")
-// assert.fails(lambda: bananas.index('n', -2), "value not in list")
+func TestSliceInsert(t *testing.T) {
 
-// assert.fails(lambda: bananas.index('d'), "value not in list")
+	globals := map[string]interface{}{
+		"assert":   &assert{t: t},
+		"intSlice": intSlice,
+	}
 
-// assert.fails(lambda: bananas.index('s', -1000, 6), "value not in list")
-// assert.fails(lambda: bananas.index('d', -1000, 1000), "value not in list")
+	code := []byte(`
+def insert_at(index):
+	x = intSlice([0,1,2])
+	x.insert(index, 42)
+	return x
+assert.Eq(insert_at(-99), intSlice([42, 0, 1, 2]))
+assert.Eq(insert_at(-2), intSlice([0, 42, 1, 2]))
+assert.Eq(insert_at(-1), intSlice([0, 1, 42, 2]))
+assert.Eq(insert_at( 0), intSlice([42, 0, 1, 2]))
+assert.Eq(insert_at( 1), intSlice([0, 42, 1, 2]))
+assert.Eq(insert_at( 2), intSlice([0, 1, 42, 2]))
+assert.Eq(insert_at( 3), intSlice([0, 1, 2, 42]))
+assert.Eq(insert_at( 4), intSlice([0, 1, 2, 42]))
+`)
+	_, err := starlight.Eval(code, globals, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSliceRemove(t *testing.T) {
+
+	globals := map[string]interface{}{
+		"assert":   &assert{t: t},
+		"intSlice": intSlice,
+	}
+
+	code := []byte(`
+def remove(v):
+  x = intSlice([3, 1, 4, 1])
+  x.remove(v)
+  return x
+assert.Eq(remove(3), intSlice([1, 4, 1]))
+assert.Eq(remove(1), intSlice([3, 4, 1]))
+assert.Eq(remove(4), intSlice([3, 1, 1]))
+`)
+	_, err := starlight.Eval(code, globals, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	code = []byte(`intSlice([3, 1, 4, 1]).remove(42)`)
+	_, err = starlight.Eval(code, globals, nil)
+	expectErr(t, err, "remove: element 42 not found")
+}
+
+func TestSliceIteratorInvalidation(t *testing.T) {
+	globals := map[string]interface{}{
+		"intSlice": intSlice,
+	}
+	code := []byte(`
+def iterator1():
+	list = intSlice([0, 1, 2])
+	for x in list:
+		list[x] = 2 * x
+	return list
+iterator1()
+`)
+	_, err := starlight.Eval(code, globals, nil)
+	expectErr(t, err, "cannot assign to slice during iteration")
+
+	code = []byte(`
+def iterator2():
+	list = intSlice([0, 1, 2])
+	for x in list:
+		list.remove(x)
+iterator2()
+`)
+	_, err = starlight.Eval(code, globals, nil)
+	expectErr(t, err, "cannot remove from slice during iteration")
+
+	code = []byte(`
+def iterator3():
+	list = intSlice([0, 1, 2])
+	for x in list:
+	  list.append(3)
+iterator3()
+`)
+	_, err = starlight.Eval(code, globals, nil)
+	expectErr(t, err, "cannot append to slice during iteration")
+
+	code = []byte(`
+def iterator4():
+	list = intSlice([0, 1, 2])
+	for x in list:
+		list.extend([3, 4])
+iterator4()
+`)
+	_, err = starlight.Eval(code, globals, nil)
+	expectErr(t, err, "cannot extend slice during iteration")
+
+	code = []byte(`
+def iterator5():
+	def f(x):
+	  x.append(4)
+	list = intSlice([1, 2, 3])
+	_ = [f(list) for x in list]
+iterator5()
+	`)
+	_, err = starlight.Eval(code, globals, nil)
+	expectErr(t, err, "cannot append to slice during iteration")
+}
+
+func TestSlicePop(t *testing.T) {
+	globals := map[string]interface{}{
+		"assert":   &assert{t: t},
+		"intSlice": intSlice,
+	}
+
+	code := []byte(`
+# list.pop
+x4 = intSlice([1,2,3,4,5])
+assert.Eq(x4.pop(), 5)
+assert.Eq(x4, intSlice([1,2,3,4]))
+assert.Eq(x4.pop(1), 2)
+assert.Eq(x4, intSlice([1,3,4]))
+assert.Eq(x4.pop(0), 1)
+assert.Eq(x4, intSlice([3,4]))
+`)
+	_, err := starlight.Eval(code, globals, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
 
 // func TestSlicePlus(t *testing.T) {
 // 	x := []int{1, 2, 3}

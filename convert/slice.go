@@ -300,7 +300,7 @@ func list_insert(fnname string, g *GoSlice, args starlark.Tuple, kwargs []starla
 		if index < 0 {
 			index = 0 // start
 		}
-		g.v = reflect.Append(g.v, reflect.New(g.v.Type().Elem()))
+		g.v = reflect.Append(g.v, reflect.Zero(g.v.Type().Elem()))
 		reflect.Copy(g.v.Slice(index+1, g.v.Len()), g.v.Slice(index, g.v.Len())) // slide up one
 		g.v.Index(index).Set(val)
 	}
@@ -316,15 +316,15 @@ func list_remove(fnname string, g *GoSlice, args starlark.Tuple, kwargs []starla
 		return nil, err
 	}
 
-	v := FromValue(args[0])
+	v := conv(args[0], g.v.Type().Elem()).Interface()
 	for i := 0; i < g.v.Len(); i++ {
 		elem := g.v.Index(i)
-		if reflect.DeepEqual(elem, v) {
+		if reflect.DeepEqual(elem.Interface(), v) {
 			g.v = reflect.AppendSlice(g.v.Slice(0, i), g.v.Slice(i+1, g.v.Len()))
 			return starlark.None, nil
 		}
 	}
-	return nil, fmt.Errorf("remove: element not found")
+	return nil, fmt.Errorf("remove: element %v not found", v)
 }
 
 // https://github.com/google/starlark-go/blob/master/doc/spec.md#list·pop
@@ -348,9 +348,13 @@ func list_pop(fnname string, g *GoSlice, args starlark.Tuple, kwargs []starlark.
 	if err := g.checkMutable("pop from"); err != nil {
 		return nil, err
 	}
-	res := g.v.Index(index)
+	// convert this out before reslicing, otherwise the value changes out from under us.
+	res, err := toValue(g.v.Index(index))
+	if err != nil {
+		return nil, err
+	}
 	g.v = reflect.AppendSlice(g.v.Slice(0, index), g.v.Slice(index+1, g.v.Len()))
-	return toValue(res)
+	return res, nil
 }
 
 // indices converts start_ and end_ to indices in the range [0:len].
