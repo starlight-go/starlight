@@ -10,21 +10,25 @@ import (
 
 func main() {
 	http.HandleFunc("/", handle)
-	port := "8080"
-	fmt.Printf("running web server on http://localhost:%v?name=starlight&repeat=3\n", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
+	port := ":8080"
+	fmt.Printf("running web server on http://localhost%v?name=starlight&repeat=3\n", port)
+	if err := http.ListenAndServe(port, nil); err != nil {
 		log.Fatal(err)
 	}
 }
 
 func handle(w http.ResponseWriter, r *http.Request) {
-	_, err := starlight.Eval("output.star", map[string]interface{}{
+	fmt.Println("handling request", r.URL)
+	// here we define the global variables and functions we're making available
+	// to the script.  These will define how the script can interact with our Go
+	// code and the outside world.
+	globals := map[string]interface{}{
 		"r":       r,
 		"w":       w,
 		"Fprintf": fmt.Fprintf,
-	}, nil)
+	}
+	_, err := starlight.Eval("handle.star", globals, nil)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
+		fmt.Println(err)
 	}
 }
