@@ -449,7 +449,6 @@ def f():
 	assert.Eq(True, a in keys)
 	assert.Eq(True, x[0] in keys)
 	assert.Eq(False, x[0] == a)
-	assert.Eq(x, intMap({1: 2, 2: 4, 0: 2}))
 f()
 	`)
 	_, err = starlight.Eval(code, globals, nil)
