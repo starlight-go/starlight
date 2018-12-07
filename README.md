@@ -99,3 +99,20 @@ The [example](https://github.com/starlight-go/starlight/tree/master/example)
 directory shows an example of using starlight to run scripts that modify the
 output of a running web server.
 
+## Why?
+
+**Why not just use starlark-go directly?**
+
+Well, it's actually quite difficult to get go data *into* a starlark-go script. Starlark as written is made more for configuration, so you mostly get data *out* of scripts, and mostly just basic values.
+
+For example, structs just aren't supported, unless you write a complicated wrapper (starlight does that for you). Adapting a function to starlark-go requires a bunch of boilerplate adapter and conversion code, and then if you're using anything other than basic types (int, string, bool, float, etc), you need adapters for those, too (starlight does that for you, too).
+
+**Why embed python in your Go application?**
+
+Because it lets you add flexibility without having to recompile.  It lets users customize your application with just a few lines of python.
+
+Also, Starlark is *safe*.  You can run arbitrary code from third parties without worrying about it blowing up your machine or downloading nasty things from the internet (unless you give scripts the ability to do that).  Starlark code can only call the functions you allow.
+
+## How?
+
+Lots of reflection.  It's not as slow as you think.  Running a small pre-compiled script including the time to process the inputs using reflection, takes less than 2400ns on my 2017 macbook pro (that's 0.0024 milliseconds). 
