@@ -199,7 +199,6 @@ x9["a"] = 3
 }
 
 func expectErr(t *testing.T, err error, expected string) {
-	t.Helper()
 	if err == nil {
 		t.Fatal("unexpected nil error")
 	}
