@@ -80,10 +80,9 @@ script as-is (this is useful if you need custom behavior).
 ## Functions
 
 You can pass go functions that the script can call by passing your function in
-with the rest of the globals. Some caveats: starlark ints always come in as
-int64, not "int".  Positional args are passed to your function and converted to
-their respective go types. Kwargs passed from starlark scripts are currently
-ignored.
+with the rest of the globals. Positional args are passed to your function and
+converted to their appropriate go type if possible. Kwargs passed from starlark
+scripts are currently ignored.
 
 ## Caching
 
