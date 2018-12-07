@@ -1,4 +1,4 @@
-// Package starlight provides a convenience wrapper around github.com/google/starlark.
+// Package starlight provides a convenience wrapper around github.com/google/starlark-go.
 package starlight
 
 import (
@@ -46,8 +46,8 @@ func Eval(src interface{}, globals map[string]interface{}, load LoadFunc) (map[s
 	return convert.FromStringDict(dict), nil
 }
 
-// Starlight is a script/plugin runner.
-type Starlight struct {
+// Cache is a cache of scripts to avoid re-reading files and reparsing them.
+type Cache struct {
 	dirs  []string
 	cache *cache
 
@@ -67,22 +67,22 @@ func run(p *starlark.Program, globals map[string]interface{}, load LoadFunc) (ma
 	return convert.FromStringDict(ret), nil
 }
 
-// New returns a Starlight runner that looks in the given directories for plugin
+// New returns a Starlight Cache that looks in the given directories for plugin
 // files to run.  The directories are searched in order for files when Run is
 // called.  Calls to the script function load() will also look in these
 // directories. This function will panic if you give it no directories.
-func New(dirs ...string) *Starlight {
+func New(dirs ...string) *Cache {
 	if len(dirs) == 0 {
 		panic(fmt.Errorf("no directories given"))
 	}
-	return newS(dirs, nil)
+	return newCache(dirs, nil)
 }
 
-// WithGlobals returns a new Starlight runner that passes the listed global
+// WithGlobals returns a new Starlight cache that passes the listed global
 // values to scripts loaded with the load() script function.  Note that these
 // globals will *not* be passed to individual scripts you run unless you
 // explicitly pass them in the Run call.
-func WithGlobals(globals map[string]interface{}, dirs ...string) (*Starlight, error) {
+func WithGlobals(globals map[string]interface{}, dirs ...string) (*Cache, error) {
 	if len(dirs) == 0 {
 		return nil, fmt.Errorf("no directories given")
 	}
@@ -90,38 +90,38 @@ func WithGlobals(globals map[string]interface{}, dirs ...string) (*Starlight, er
 	if err != nil {
 		return nil, err
 	}
-	return newS(dirs, g), nil
+	return newCache(dirs, g), nil
 }
 
-func newS(dirs []string, globals starlark.StringDict) *Starlight {
-	s := &Starlight{
+func newCache(dirs []string, globals starlark.StringDict) *Cache {
+	c := &Cache{
 		dirs:    dirs,
 		scripts: map[string]*starlark.Program{},
 	}
-	s.cache = &cache{
+	c.cache = &cache{
 		cache:    make(map[string]*entry),
-		readFile: s.readFile,
+		readFile: c.readFile,
 		globals:  globals,
 	}
-	return s
+	return c
 }
 
 // Run looks for a file with the given filename, and runs it with the given globals
 // passed to the script's global namespace. The return value is all convertible
 // global variables from the script, which may include the passed-in globals.
-func (s *Starlight) Run(filename string, globals map[string]interface{}) (map[string]interface{}, error) {
+func (c *Cache) Run(filename string, globals map[string]interface{}) (map[string]interface{}, error) {
 	dict, err := convert.MakeStringDict(globals)
 	if err != nil {
 		return nil, err
 	}
-	s.mu.Lock()
-	if p, ok := s.scripts[filename]; ok {
-		s.mu.Unlock()
-		return run(p, globals, s.load)
+	c.mu.Lock()
+	if p, ok := c.scripts[filename]; ok {
+		c.mu.Unlock()
+		return run(p, globals, c.load)
 	}
-	s.mu.Unlock()
+	c.mu.Unlock()
 
-	b, err := s.readFile(filename)
+	b, err := c.readFile(filename)
 	if err != nil {
 		return nil, err
 	}
@@ -129,20 +129,20 @@ func (s *Starlight) Run(filename string, globals map[string]interface{}) (map[st
 	if err != nil {
 		return nil, err
 	}
-	s.mu.Lock()
-	s.scripts[filename] = p
-	s.mu.Unlock()
-	return run(p, globals, s.load)
+	c.mu.Lock()
+	c.scripts[filename] = p
+	c.mu.Unlock()
+	return run(p, globals, c.load)
 }
 
-func (s *Starlight) load(_ *starlark.Thread, module string) (starlark.StringDict, error) {
-	return s.cache.Load(module)
+func (c *Cache) load(_ *starlark.Thread, module string) (starlark.StringDict, error) {
+	return c.cache.Load(module)
 }
 
-func (s *Starlight) readFile(filename string) ([]byte, error) {
+func (c *Cache) readFile(filename string) ([]byte, error) {
 	var err error
 	var b []byte
-	for _, d := range s.dirs {
+	for _, d := range c.dirs {
 		b, err = ioutil.ReadFile(filepath.Join(d, filename))
 		if err == nil {
 			return b, nil
@@ -150,21 +150,21 @@ func (s *Starlight) readFile(filename string) ([]byte, error) {
 	}
 	// guaranteed to have at least one directory, so there should be at least
 	// not found error here.
-	return nil, fmt.Errorf("cannot find file %q in any of the configured directories %q", filename, s.dirs)
+	return nil, fmt.Errorf("cannot find file %q in any of the configured directories %q", filename, c.dirs)
 }
 
 // Reset clears all cached scripts.
-func (s *Starlight) Reset() {
-	s.mu.Lock()
-	s.scripts = map[string]*starlark.Program{}
-	s.cache.reset()
-	s.mu.Unlock()
+func (c *Cache) Reset() {
+	c.mu.Lock()
+	c.scripts = map[string]*starlark.Program{}
+	c.cache.reset()
+	c.mu.Unlock()
 }
 
 // Forget clears the cached script for the given filename.
-func (s *Starlight) Forget(filename string) {
-	s.mu.Lock()
-	s.cache.remove(filename)
-	delete(s.scripts, filename)
-	s.mu.Unlock()
+func (c *Cache) Forget(filename string) {
+	c.mu.Lock()
+	c.cache.remove(filename)
+	delete(c.scripts, filename)
+	c.mu.Unlock()
 }

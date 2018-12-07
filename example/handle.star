@@ -6,10 +6,12 @@
 # for loops and if statements need to be in functions in starlark
 def main():
   # Query returns a map[string][]string
+  
   # this gets a value from a map, with a default it it doesn't exist
   # and then takes the first value in the list.
   repeat = r.URL.Query().get("repeat", ["1"])[0]
   name = r.URL.Query().get("name", ["starlight"])[0]
+
   for x in range(int(repeat)):
     Fprintf(w, "hello %s\n", name)
 
