@@ -53,3 +53,7 @@ func main() {
 	}
 	fmt.Printf("%v is draft: %v\n", p.Name, p.IsDraft)
 }
+
+// Running it:
+// $ go run inout.go
+// A Story About Nate 2018/12/07 is draft: false
