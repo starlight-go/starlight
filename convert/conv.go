@@ -15,6 +15,7 @@ func init() {
 	resolve.AllowFloat = true     // allow floating point literals, the 'float' built-in, and x / y
 	resolve.AllowSet = true       // allow the 'set' built-in
 	resolve.AllowBitwise = true   // allow bitwise operands
+	resolve.AllowRecursion = true // allow while statements and recursive functions
 }
 
 // ToValue attempts to convert the given value to a starlark.Value.  It supports
@@ -22,6 +23,15 @@ func init() {
 // structs, maps, slices, and functions that use the aforementioned.  Any
 // starlark.Value is passed through as-is.
 func ToValue(v interface{}) (starlark.Value, error) {
+
+	// recursively handle map[string]interface{},
+	// so StringDict can be a package.
+	switch m := v.(type) {
+	case map[string]interface{}:
+		sd, err := MakeStringDict(m)
+		return sd, err
+	}
+
 	if val, ok := v.(starlark.Value); ok {
 		return val, nil
 	}
