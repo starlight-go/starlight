@@ -43,6 +43,11 @@ type GoInterface struct {
 	v reflect.Value
 }
 
+// Value returns relfect.Value of the underlying interface
+func (g *GoInterface) Value() reflect.Value {
+	return g.v
+}
+
 // Attr returns a starlark value that wraps the method or field with the given
 // name.
 func (g *GoInterface) Attr(name string) (starlark.Value, error) {

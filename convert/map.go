@@ -32,6 +32,11 @@ func NewGoMap(m interface{}) *GoMap {
 	return &GoMap{v: v}
 }
 
+// Value returns relfect.Value of the underlying map
+func (g *GoMap) Value() reflect.Value {
+	return g.v
+}
+
 // SetKey implements starlark.HasSetKey.
 func (g *GoMap) SetKey(k, v starlark.Value) (err error) {
 	if g.frozen {
