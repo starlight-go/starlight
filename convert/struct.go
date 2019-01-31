@@ -24,6 +24,11 @@ type GoStruct struct {
 	v reflect.Value
 }
 
+// Value returns relfect.Value of the underlying struct
+func (g *GoStruct) Value() reflect.Value {
+	return g.v
+}
+
 // Attr returns a starlark value that wraps the method or field with the given
 // name.
 func (g *GoStruct) Attr(name string) (starlark.Value, error) {

@@ -21,7 +21,7 @@ type GoSlice struct {
 	frozen bool
 }
 
-// NewGoMap wraps the given slice in a new GoSlice.  This function will panic if m
+// NewGoSlice wraps the given slice in a new GoSlice.  This function will panic if m
 // is not a map.
 func NewGoSlice(slice interface{}) *GoSlice {
 	v := reflect.ValueOf(slice)
@@ -29,6 +29,11 @@ func NewGoSlice(slice interface{}) *GoSlice {
 		panic(fmt.Errorf("NewGoSlice expects a slice or array, but got %T", slice))
 	}
 	return &GoSlice{v: v}
+}
+
+// Value returns relfect.Value of the underlying slice
+func (g *GoSlice) Value() reflect.Value {
+	return g.v
 }
 
 // String returns the string representation of the value.
