@@ -200,7 +200,7 @@ func FromDict(m *starlark.Dict) map[interface{}]interface{} {
 		key := FromValue(k)
 		// should never be not found or unhashable, so ignore err and found.
 		val, _, _ := m.Get(k)
-		ret[key] = val
+		ret[key] = FromValue(val)
 	}
 	return ret
 }
