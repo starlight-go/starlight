@@ -39,6 +39,9 @@ func hasMethods(val reflect.Value) bool {
 }
 
 func toValue(val reflect.Value) (starlark.Value, error) {
+	if _, ok := val.Interface().(starlark.Value); ok {
+		return val.Interface().(starlark.Value), nil
+	}
 	if hasMethods(val) {
 		// this handles all basic types with methods (numbers, strings, bools)
 		ifc, ok := makeGoInterface(val)
@@ -184,11 +187,11 @@ func makeDict(val reflect.Value) (starlark.Value, error) {
 			return nil, err
 		}
 
-		val, err := toValue(val.MapIndex(k))
+		v, err := toValue(val.MapIndex(k))
 		if err != nil {
 			return nil, err
 		}
-		dict.SetKey(key, val)
+		dict.SetKey(key, v)
 	}
 	return &dict, nil
 }
