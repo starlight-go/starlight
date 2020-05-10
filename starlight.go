@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/starlight-go/starlight/convert"
+	"github.com/sourcegraph/starlight/convert"
 	"go.starlark.net/resolve"
 	"go.starlark.net/starlark"
 )
