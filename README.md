@@ -1,3 +1,19 @@
+# Starlight Enhanced
+
+Welcome to Starlight Enhanced, a sophisticated fork of the original [Starlight](https://github.com/starlight-go/starlight) project. Our version builds upon the Starlight wrapper for [starlark-go](https://github.com/google/starlark-go) to facilitate smoother data conversion between Go and Starlark.
+
+Due to the lack of ongoing maintenance of the original Starlight project, we saw an opportunity to breathe new life into it. We've optimized it to work seamlessly with the latest versions of starlark-go while addressing and rectifying bugs present in the original repository.
+
+The objectives of this enhanced fork include:
+
+- Identification and resolution of bugs and corner cases that were present in the original repository.
+- Extension of the library's capabilities by exposing additional functions, thereby enriching functionality.
+- Ensuring compatibility and support for the latest versions of starlark-go.
+
+We hope that this improved iteration of Starlight will contribute to your projects and enhance your experience with starlark-go. Your contributions and feedback are always welcome.
+
+# Here's the original README.md
+
 # <img src="https://user-images.githubusercontent.com/3185864/49534746-5b90de80-f890-11e8-9fd6-5417cf915c67.png"/> Starlight [![GoDoc](https://godoc.org/github.com/starlight-go/starlight?status.svg)](https://godoc.org/github.com/starlight-go/starlight) [![Build Status](https://travis-ci.org/starlight-go/starlight.svg?branch=master)](https://travis-ci.org/starlight-go/starlight)
 
 
