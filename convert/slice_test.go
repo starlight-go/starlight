@@ -57,8 +57,8 @@ assert.Eq(abc[2], "c")
 		t.Fatal(err)
 	}
 	tests := []fail{
-		{"abc[3]", "starlight_slice<[]string> index 3 out of range [0:3]"},
-		{"abc[-4]", "starlight_slice<[]string> index -1 out of range [0:3]"},
+		{"abc[3]", "starlight_slice<[]string> index 3 out of range [-3:2]"},
+		{"abc[-4]", "starlight_slice<[]string> index -4 out of range [-3:2]"},
 	}
 
 	expectFails(t, tests, globals)
@@ -105,7 +105,7 @@ assert.Eq(x3, intSlice([0, 2, 5]))
 	globals["x3"] = v
 
 	tests := []fail{
-		{"x3[3]=4", "starlight_slice<[]int> index 3 out of range [0:3]"},
+		{"x3[3]=4", "starlight_slice<[]int> index 3 out of range [-3:2]"},
 		{"x3[0]=0", "cannot assign to frozen slice"},
 		{"x3.clear()", "cannot clear frozen slice"},
 	}

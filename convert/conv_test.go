@@ -11,7 +11,7 @@ import (
 func TestKwargs(t *testing.T) {
 	// Mental note: starlark numbers pop out as int64s
 	data := []byte(`
-func("a", 1, foo=1, foo=2)
+func("a", 1, foo=1, bar=2)
 `)
 
 	thread := &starlark.Thread{
@@ -43,7 +43,7 @@ func("a", 1, foo=1, foo=2)
 	if len(expArgs) != len(goargs) {
 		t.Fatalf("expected %d args, but got %d", len(expArgs), len(goargs))
 	}
-	expKwargs := []Kwarg{{Name: "foo", Value: int64(1)}, {Name: "foo", Value: int64(2)}}
+	expKwargs := []Kwarg{{Name: "foo", Value: int64(1)}, {Name: "bar", Value: int64(2)}}
 
 	if !reflect.DeepEqual(expArgs, goargs) {
 		t.Errorf("expected args %#v, got args %#v", expArgs, goargs)

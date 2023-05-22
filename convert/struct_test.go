@@ -73,5 +73,5 @@ a = m.getBool()
 		"m": &mega{},
 	}
 	_, err := starlight.Eval(code, globals, nil)
-	expectErr(t, err, "starlight_struct<*convert_test.mega> has no .getBool field or method")
+	expectErr(t, err, "starlight_struct<*convert_test.mega> has no .getBool field or method (did you mean .Bool?)")
 }
