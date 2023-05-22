@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/starlight-go/starlight"
+	"github.com/1set/starlight"
 )
 
 func TestVariadic(t *testing.T) {

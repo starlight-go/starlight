@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/starlight-go/starlight"
-	"github.com/starlight-go/starlight/convert"
+	"github.com/1set/starlight"
+	"github.com/1set/starlight/convert"
 )
 
 func TestSliceTruth(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/starlight-go/starlight"
+	"github.com/1set/starlight"
 )
 
 type assert struct {

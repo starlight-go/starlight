@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/starlight-go/starlight"
+	"github.com/1set/starlight"
 )
 
 // Starlight makes it easy to get values in and out of your starlark scripts.
