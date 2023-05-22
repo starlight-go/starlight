@@ -12,7 +12,7 @@ defaults:
 
 jobs:
   build:
-    name: Test with ${{ matrix.vm-os }}
+    name: Test with ${{ matrix.go-version }} on ${{ matrix.vm-os }}
     runs-on: ${{ matrix.vm-os }}
     strategy:
       max-parallel: 10
