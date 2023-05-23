@@ -29,10 +29,13 @@ func ToValue(v interface{}) (starlark.Value, error) {
 }
 
 func hasMethods(val reflect.Value) bool {
+	if !val.IsValid() {
+		return false
+	}
 	if val.NumMethod() > 0 {
 		return true
 	}
-	if val.Kind() == reflect.Ptr && val.Elem().NumMethod() > 0 {
+	if val.Kind() == reflect.Ptr && val.Elem().IsValid() && val.Elem().NumMethod() > 0 {
 		return true
 	}
 	return false
@@ -73,6 +76,8 @@ func toValue(val reflect.Value) (starlark.Value, error) {
 		return &GoStruct{v: val}, nil
 	case reflect.Interface:
 		return &GoInterface{v: val}, nil
+	case reflect.Invalid:
+		return starlark.None, nil
 	}
 
 	return nil, fmt.Errorf("type %T is not a supported starlark type", val.Interface())
@@ -105,6 +110,8 @@ func FromValue(v starlark.Value) interface{} {
 		return FromDict(v)
 	case *starlark.Set:
 		return FromSet(v)
+	case starlark.NoneType:
+		return nil
 	case *GoStruct:
 		return v.v.Interface()
 	case *GoInterface:
@@ -290,8 +297,53 @@ func makeStarFn(name string, gofn reflect.Value) *starlark.Builtin {
 		for i, v := range vals {
 			val := reflect.ValueOf(v)
 			argT := gofn.Type().In(i)
-			if !val.Type().AssignableTo(argT) {
-				val = val.Convert(argT)
+
+			var err error
+			val, err = convertReflectValue(val, argT)
+			if err != nil {
+				return starlark.None, fmt.Errorf("arg %d: %v", i, err)
+			}
+
+			rvs = append(rvs, val)
+		}
+		out := gofn.Call(rvs)
+		return makeOut(out)
+	})
+}
+
+func makeVariadicStarFn(name string, gofn reflect.Value) *starlark.Builtin {
+	return starlark.NewBuiltin(name, func(thread *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+		minArgs := gofn.Type().NumIn() - 1
+		if len(args) < minArgs {
+			return starlark.None, fmt.Errorf("expected at least %d args but got %d", minArgs, len(args))
+		}
+		vals := FromTuple(args)
+		rvs := make([]reflect.Value, 0, len(args))
+
+		// grab all the non-variadics first
+		for i := 0; i < minArgs; i++ {
+			val := reflect.ValueOf(vals[i])
+			argT := gofn.Type().In(i)
+
+			var err error
+			val, err = convertReflectValue(val, argT)
+			if err != nil {
+				return starlark.None, fmt.Errorf("arg %d: %v", i, err)
+			}
+
+			rvs = append(rvs, val)
+		}
+		// last "in" type by definition must be a slice of something. We need to
+		// know what something so we can convert things as needed.
+		vtype := gofn.Type().In(gofn.Type().NumIn() - 1).Elem()
+		// the rest of the args need to be batched into a slice for the variadic
+		for i := minArgs; i < len(vals); i++ {
+			val := reflect.ValueOf(vals[i])
+
+			var err error
+			val, err = convertReflectValue(val, vtype)
+			if err != nil {
+				return starlark.None, fmt.Errorf("arg %d: %v", i, err)
 			}
 			rvs = append(rvs, val)
 		}
@@ -334,36 +386,121 @@ func makeOut(out []reflect.Value) (starlark.Value, error) {
 	return starlark.Tuple(res), err
 }
 
-func makeVariadicStarFn(name string, gofn reflect.Value) *starlark.Builtin {
-	return starlark.NewBuiltin(name, func(thread *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-		minArgs := gofn.Type().NumIn() - 1
-		if len(args) < minArgs {
-			return starlark.None, fmt.Errorf("expected at least %d args but got %d", minArgs, len(args))
-		}
-		vals := FromTuple(args)
-		rvs := make([]reflect.Value, 0, len(args))
+// convertReflectValue converts a reflect.Value to a given type.
+func convertReflectValue(val reflect.Value, argT reflect.Type) (reflect.Value, error) {
+	if !val.IsValid() {
+		return reflect.Zero(argT), nil
+	}
+	if val.Type().AssignableTo(argT) {
+		return val, nil
+	}
+	if val.Type().ConvertibleTo(argT) {
+		return val.Convert(argT), nil
+	}
+	if val.Kind() == reflect.Slice && argT.Kind() == reflect.Slice {
+		return convertSlice(val, argT)
+	}
+	if val.Kind() == reflect.Map && argT.Kind() == reflect.Map {
+		return convertMap(val, argT)
+	}
+	return reflect.Value{}, fmt.Errorf("expected type %v got %v", argT, val.Type())
+}
 
-		// grab all the non-variadics first
-		for i := 0; i < minArgs; i++ {
-			val := reflect.ValueOf(vals[i])
-			argT := gofn.Type().In(i)
-			if !val.Type().AssignableTo(argT) {
-				val = val.Convert(argT)
-			}
-			rvs = append(rvs, val)
+func convertSlice(val reflect.Value, argT reflect.Type) (reflect.Value, error) {
+	argElem := argT.Elem()
+	valLen := val.Len()
+	newSlice := reflect.MakeSlice(argT, valLen, valLen)
+
+	for i := 0; i < valLen; i++ {
+		elem := val.Index(i)
+
+		if elem.Type().AssignableTo(argElem) {
+			newSlice.Index(i).Set(elem)
+		} else if elem.Type().ConvertibleTo(argElem) {
+			newSlice.Index(i).Set(elem.Convert(argElem))
+		} else if elem.Elem().Type().ConvertibleTo(argElem) {
+			newSlice.Index(i).Set(elem.Elem().Convert(argElem))
+		} else {
+			return reflect.Value{}, fmt.Errorf("expected slice element type %v got %v", argElem, elem.Type())
 		}
-		// last "in" type by definition must be a slice of something. We need to
-		// know what something so we can convert things as needed.
-		vtype := gofn.Type().In(gofn.Type().NumIn() - 1).Elem()
-		// the rest of the args need to be batched into a slice for the variadic
-		for i := minArgs; i < len(vals); i++ {
-			val := reflect.ValueOf(vals[i])
-			if !val.Type().AssignableTo(vtype) {
-				val = val.Convert(vtype)
-			}
-			rvs = append(rvs, val)
+	}
+
+	return newSlice, nil
+}
+
+func convertMap(val reflect.Value, argT reflect.Type) (reflect.Value, error) {
+	argKey := argT.Key()
+	argElem := argT.Elem()
+	newMap := reflect.MakeMapWithSize(argT, val.Len())
+
+	for _, key := range val.MapKeys() {
+		newKey, err := convertElemValue(key, argKey)
+		if err != nil {
+			return reflect.Value{}, fmt.Errorf("map key conversion failed: %v", err)
 		}
-		out := gofn.Call(rvs)
-		return makeOut(out)
-	})
+
+		valElem := val.MapIndex(key)
+		newElem, err := convertElemValue(valElem, argElem)
+		if err != nil {
+			return reflect.Value{}, fmt.Errorf("map value conversion failed: %v", err)
+		}
+
+		newMap.SetMapIndex(newKey, newElem)
+	}
+
+	return newMap, nil
+}
+
+func convertElemValue(val reflect.Value, targetType reflect.Type) (reflect.Value, error) {
+	if val.Type().AssignableTo(targetType) || val.Type().ConvertibleTo(targetType) {
+		return val.Convert(targetType), nil
+	} else if val.Elem().Type().ConvertibleTo(targetType) {
+		return val.Elem().Convert(targetType), nil
+	} else if val.Type().Kind() == reflect.Interface && !val.IsNil() {
+		unwrapped := val.Elem()
+		if unwrapped.Type().ConvertibleTo(targetType) {
+			return unwrapped.Convert(targetType), nil
+		} else if sv, ok := unwrapped.Interface().(starlark.Value); ok {
+			goVal := FromValue(sv)
+			goVal = convertNumericTypes(goVal, targetType)
+			if reflect.TypeOf(goVal) != targetType {
+				return reflect.Value{}, fmt.Errorf("expected type %v got %v", targetType, reflect.TypeOf(goVal))
+			}
+			return reflect.ValueOf(goVal), nil
+		}
+	}
+	return reflect.Value{}, fmt.Errorf("expected type %v got %v", targetType, val.Type())
+}
+
+func convertNumericTypes(value interface{}, targetType reflect.Type) interface{} {
+	// If the value is an integer, convert it to the appropriate integer type.
+	switch st := value.(type) {
+	case int64:
+		switch targetType.Kind() {
+		case reflect.Int:
+			return int(st)
+		case reflect.Int32:
+			return int32(st)
+		case reflect.Int16:
+			return int16(st)
+		case reflect.Int8:
+			return int8(st)
+		case reflect.Uint:
+			return uint(st)
+		case reflect.Uint64:
+			return uint64(st)
+		case reflect.Uint32:
+			return uint32(st)
+		case reflect.Uint16:
+			return uint16(st)
+		case reflect.Uint8:
+			return uint8(st)
+		}
+	// If the value is a float, convert it to the appropriate float type.
+	case float64:
+		if targetType.Kind() == reflect.Float32 {
+			return float32(st)
+		}
+	}
+	return value
 }
