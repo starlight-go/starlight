@@ -3,6 +3,7 @@ package convert_test
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/1set/starlight"
@@ -231,5 +232,267 @@ func TestMakeStarFnOneRetTwoNonErrorAndError(t *testing.T) {
 	}
 	if v, err := execStarlark(`a, b = boo("starlight", 5)`, globals); err != nil {
 		t.Fatalf(`expected a = "hi starlight", b = 10, err = nil, but got a=%v, b=%v, err=%v`, v["a"], v["b"], err)
+	}
+}
+
+func TestMakeStarFnSlice(t *testing.T) {
+	fn := func(s1 []string, s2 []int) (int, string, error) {
+		cnt := 10
+		if len(s1) != 2 || s1[0] != "hello" || s1[1] != "world" {
+			return 0, "", errors.New("incorrect slice input1")
+		}
+		if len(s2) != 2 || s2[0] != 1 || s2[1] != 2 {
+			return 0, "", errors.New("incorrect slice input2")
+		}
+
+		// TODO: nested slice like [["slice", "test"], ["hello", "world"]], [[[1, 2]]]) is not supported yet
+		return cnt, "hey!", nil
+	}
+
+	skyf := convert.MakeStarFn("boo", fn)
+
+	data := []byte(`
+a = boo(["hello", "world"], [1, 2])
+b = 0.1
+    `)
+
+	thread := &starlark.Thread{
+		Print: func(_ *starlark.Thread, msg string) { fmt.Println(msg) },
+	}
+
+	globals := map[string]starlark.Value{
+		"boo": skyf,
+	}
+	globals, err := starlark.ExecFile(thread, "foo.star", data, globals)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := convert.FromStringDict(globals)
+	if !reflect.DeepEqual(v["a"], []interface{}{int64(10), "hey!"}) {
+		t.Fatalf(`expected a = [10, "hey!"], but got %#v`, v)
+	}
+}
+
+func TestMakeStarFnMap(t *testing.T) {
+	fn := func(m1 map[string]int32, m2 map[string]int, m3 map[string]float32, m4 map[uint8]uint64, m5 map[int16]int8) (int, string, error) {
+		cnt := int32(0)
+		for k, v := range m1 {
+			if k == "hello" && v == 1 {
+				cnt += v
+			} else if k == "world" && v == 2 {
+				cnt += v
+			} else {
+				return 0, "", errors.New("incorrect map input1")
+			}
+		}
+		for range m2 {
+			cnt += 1
+		}
+		for range m3 {
+			cnt += 1
+		}
+		for range m4 {
+			cnt += 1
+		}
+		for range m5 {
+			cnt += 1
+		}
+
+		// TODO: nested map like map[int16][]int8 {1000: [1, 2, 3]} is not supported yet
+		return int(cnt), "hey!", nil
+	}
+
+	skyf := convert.MakeStarFn("boo", fn)
+
+	data := []byte(`
+a = boo({"hello": 1, "world": 2}, {"int": 100}, {"float32": 0.1}, {10: 5}, {1000: 100})
+b = 0.1
+    `)
+
+	thread := &starlark.Thread{
+		Print: func(_ *starlark.Thread, msg string) { fmt.Println(msg) },
+	}
+
+	globals := map[string]starlark.Value{
+		"boo": skyf,
+	}
+	globals, err := starlark.ExecFile(thread, "foo.star", data, globals)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := convert.FromStringDict(globals)
+	if !reflect.DeepEqual(v["a"], []interface{}{int64(7), "hey!"}) {
+		t.Fatalf(`expected a = [7, "hey!"], but got %#v`, v)
+	}
+}
+
+func TestMakeStarFnArgumentType(t *testing.T) {
+	type testCase struct {
+		name          string
+		funcToConvert interface{}
+		codeSnippet   string
+		shouldPanic   bool
+		wantErr       bool
+	}
+	testCases := []testCase{
+		{
+			name:          "Non-function type",
+			funcToConvert: 123,
+			codeSnippet:   `x = boo()`,
+			shouldPanic:   true,
+		},
+		{
+			name:          "Call with wrong argument count",
+			funcToConvert: func(a int, b int) {},
+			codeSnippet:   `x = boo(12)`,
+			wantErr:       true,
+		},
+		{
+			name:          "Call with wrong argument type",
+			funcToConvert: func(a int) {},
+			codeSnippet:   `x = boo("hello")`,
+			wantErr:       true,
+		},
+		{
+			name:          "Call with wrong argument type 2",
+			funcToConvert: func(a int) int { return 0 },
+			codeSnippet:   `x = boo(["a", "b"])`,
+			wantErr:       true,
+		},
+		{
+			name: "Call with slice argument",
+			funcToConvert: func(a []string) int {
+				return len(a)
+			},
+			codeSnippet: `x = boo(["a", "b"])`,
+		},
+		{
+			name: "Call with wrong slice argument",
+			funcToConvert: func(a []int) int {
+				t.Logf("[Go⭐️] %v", a)
+				return len(a)
+			},
+			codeSnippet: `x = boo(["123", "456"])`,
+			wantErr:     true,
+		},
+		{
+			name: "Call with non-matched slice argument",
+			funcToConvert: func(a []struct{}) int {
+				t.Logf("[Go⭐️] %v", a)
+				return len(a)
+			},
+			codeSnippet: `x = boo(["123", "456"])`,
+			wantErr:     true,
+		},
+		{
+			name: "Call for nested slice argument (not handle yet)",
+			funcToConvert: func(a [][]string) int {
+				return len(a)
+			},
+			codeSnippet: `x = boo([["a", "b"]])`,
+			wantErr:     true,
+		},
+		{
+			name: "Call for nested slice argument 2 (not handle yet)",
+			funcToConvert: func(a []map[int]int) int {
+				return len(a)
+			},
+			codeSnippet: `x = boo([{1: 2}])`,
+			wantErr:     true,
+		},
+		{
+			name: "Call with map interface argument",
+			funcToConvert: func(a map[string]interface{}) int {
+				return len(a)
+			},
+			codeSnippet: `x = boo({"a": 1, "b": True, "c": [1,2,3]})`,
+		},
+		{
+			name: "Call with map typed argument",
+			funcToConvert: func(a map[string]int) int {
+				return len(a)
+			},
+			codeSnippet: `x = boo({"a": 1, "b": 2})`,
+		},
+		{
+			name: "Call with nested map argument (not handle yet)",
+			funcToConvert: func(a map[string]map[string]int) int {
+				return len(a)
+			},
+			codeSnippet: `x = boo({"a": {"b": 1}})`,
+			wantErr:     true,
+		},
+		{
+			name: "Call with nested map argument 2 (not handle yet)",
+			funcToConvert: func(a map[string][]int) int {
+				return len(a)
+			},
+			codeSnippet: `x = boo({"a": [1, 2, 3]})`,
+			wantErr:     true,
+		},
+		{
+			name: "Call with mistyped set argument",
+			funcToConvert: func(a map[string]struct{}) int {
+				return len(a)
+			},
+			codeSnippet: `x = boo(set(["a", "B"]))`,
+			wantErr:     true,
+		},
+		{
+			name: "Call with mapped set argument",
+			funcToConvert: func(a map[string]bool) int {
+				return len(a)
+			},
+			codeSnippet: `x = boo(set(["a", "B"]))`,
+		},
+		{
+			name: "Call with func argument",
+			funcToConvert: func(a func(int) int) int {
+				return a(10)
+			},
+			codeSnippet: `x = boo(lambda x: x * 2)`,
+			wantErr:     true,
+		},
+		{
+			name: "Call with slice for array argument (not handle yet)",
+			funcToConvert: func(a [5]int) int {
+				return len(a)
+			},
+			codeSnippet: `x = boo([1, 2, 3, 4, 5])`,
+			wantErr:     true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r != nil {
+					if !tc.shouldPanic {
+						err := r.(error)
+						t.Errorf("Unexpected panic: %v", err)
+					}
+				}
+			}()
+
+			starFn := convert.MakeStarFn("testFn", tc.funcToConvert)
+
+			// Use this function in a Starlark script
+			thread := &starlark.Thread{
+				Name: "my thread",
+				Print: func(_ *starlark.Thread, msg string) {
+					t.Log("[Starlark⭐️]", msg)
+				},
+			}
+			script := tc.codeSnippet
+			globals := starlark.StringDict{
+				"boo": starFn,
+			}
+			_, err := starlark.ExecFile(thread, "script.star", script, globals)
+			if tc.wantErr && err == nil {
+				t.Errorf("Expected error, but got none")
+			} else if !tc.wantErr && err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+		})
 	}
 }

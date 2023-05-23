@@ -79,7 +79,7 @@ b = 0.1
 	}
 	v := FromStringDict(globals)
 	if !reflect.DeepEqual(v["a"], []interface{}{int64(5), "hi!"}) {
-		t.Fatalf(`expected a = [5, "hi"], but got %#v`, v)
+		t.Fatalf(`expected a = [5, "hi!"], but got %#v`, v)
 	}
 }
 
