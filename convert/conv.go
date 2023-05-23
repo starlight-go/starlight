@@ -312,6 +312,9 @@ func makeOut(out []reflect.Value) (starlark.Value, error) {
 		}
 		out = out[:len(out)-1]
 	}
+	if len(out) == 0 {
+		return starlark.None, err
+	}
 	if len(out) == 1 {
 		v, err2 := toValue(out[0])
 		if err2 != nil {
@@ -319,16 +322,16 @@ func makeOut(out []reflect.Value) (starlark.Value, error) {
 		}
 		return v, err
 	}
-	res := make([]starlark.Value, 0, len(out))
 	// tuple-up multple values
+	res := make([]starlark.Value, 0, len(out))
 	for i := range out {
-		val, err := toValue(out[i])
-		if err != nil {
-			return starlark.None, err
+		val, err3 := toValue(out[i])
+		if err3 != nil {
+			return starlark.None, err3
 		}
 		res = append(res, val)
 	}
-	return starlark.Tuple(res), nil
+	return starlark.Tuple(res), err
 }
 
 func makeVariadicStarFn(name string, gofn reflect.Value) *starlark.Builtin {
