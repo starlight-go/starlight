@@ -3,6 +3,7 @@ package convert_test
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/1set/starlight"
@@ -231,5 +232,96 @@ func TestMakeStarFnOneRetTwoNonErrorAndError(t *testing.T) {
 	}
 	if v, err := execStarlark(`a, b = boo("starlight", 5)`, globals); err != nil {
 		t.Fatalf(`expected a = "hi starlight", b = 10, err = nil, but got a=%v, b=%v, err=%v`, v["a"], v["b"], err)
+	}
+}
+
+func TestMakeStarFnSlice(t *testing.T) {
+	fn := func(s1 []string, s2 []int) (int, string, error) {
+		cnt := 10
+		if len(s1) != 2 || s1[0] != "hello" || s1[1] != "world" {
+			return 0, "", errors.New("incorrect slice input1")
+		}
+		if len(s2) != 2 || s2[0] != 1 || s2[1] != 2 {
+			return 0, "", errors.New("incorrect slice input2")
+		}
+
+		// TODO: nested slice like [["slice", "test"], ["hello", "world"]], [[[1, 2]]]) is not supported yet
+		return cnt, "hey!", nil
+	}
+
+	skyf := convert.MakeStarFn("boo", fn)
+
+	data := []byte(`
+a = boo(["hello", "world"], [1, 2])
+b = 0.1
+    `)
+
+	thread := &starlark.Thread{
+		Print: func(_ *starlark.Thread, msg string) { fmt.Println(msg) },
+	}
+
+	globals := map[string]starlark.Value{
+		"boo": skyf,
+	}
+	globals, err := starlark.ExecFile(thread, "foo.star", data, globals)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := convert.FromStringDict(globals)
+	if !reflect.DeepEqual(v["a"], []interface{}{int64(10), "hey!"}) {
+		t.Fatalf(`expected a = [10, "hey!"], but got %#v`, v)
+	}
+}
+
+func TestMakeStarFnMap(t *testing.T) {
+	fn := func(m1 map[string]int32, m2 map[string]int, m3 map[string]float32, m4 map[uint8]uint64, m5 map[int16]int8) (int, string, error) {
+		cnt := int32(0)
+		for k, v := range m1 {
+			if k == "hello" && v == 1 {
+				cnt += v
+			} else if k == "world" && v == 2 {
+				cnt += v
+			} else {
+				return 0, "", errors.New("incorrect map input1")
+			}
+		}
+		for range m2 {
+			cnt += 1
+		}
+		for range m3 {
+			cnt += 1
+		}
+		for range m4 {
+			cnt += 1
+		}
+		for range m5 {
+			cnt += 1
+		}
+
+		// TODO: nested map like map[int16][]int8 {1000: [1, 2, 3]} is not supported yet
+		return int(cnt), "hey!", nil
+	}
+
+	skyf := convert.MakeStarFn("boo", fn)
+
+	data := []byte(`
+a = boo({"hello": 1, "world": 2}, {"int": 100}, {"float32": 0.1}, {10: 5}, {1000: 100})
+b = 0.1
+    `)
+
+	thread := &starlark.Thread{
+		Print: func(_ *starlark.Thread, msg string) { fmt.Println(msg) },
+	}
+
+	globals := map[string]starlark.Value{
+		"boo": skyf,
+	}
+	globals, err := starlark.ExecFile(thread, "foo.star", data, globals)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := convert.FromStringDict(globals)
+	if !reflect.DeepEqual(v["a"], []interface{}{int64(7), "hey!"}) {
+		t.Fatalf(`expected a = [7, "hey!"], but got %#v`, v)
 	}
 }
