@@ -117,6 +117,28 @@ func TestMakeStarFnOneRetError(t *testing.T) {
 	}
 }
 
+// Test a function with two non-error return values
+func TestMakeStarFnTwoRetNonError(t *testing.T) {
+	fn := func(s string) (string, string) {
+		return "hi " + s, "bye " + s
+	}
+
+	skyf := convert.MakeStarFn("boo", fn)
+
+	globals := map[string]starlark.Value{
+		"boo": skyf,
+	}
+
+	v, err := execStarlark(`a, b = boo("starlight")`, globals)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if v["a"] != "hi starlight" || v["b"] != "bye starlight" {
+		t.Fatalf(`expected a = "hi starlight", b = "bye starlight", but got a=%#v, b=%#v`, v["a"], v["b"])
+	}
+}
+
 // Test a function with one non-error return value and one error return value
 func TestMakeStarFnOneRetNonErrorAndError(t *testing.T) {
 	fn := func(s string) (string, error) {
