@@ -334,7 +334,7 @@ func makeVariadicStarFn(name string, gofn reflect.Value) *starlark.Builtin {
 			rvs = append(rvs, val)
 		}
 		// last "in" type by definition must be a slice of something. We need to
-		// know what something so we can convert things as needed.
+		// know what something, so we can convert things as needed.
 		vtype := gofn.Type().In(gofn.Type().NumIn() - 1).Elem()
 		// the rest of the args need to be batched into a slice for the variadic
 		for i := minArgs; i < len(vals); i++ {
