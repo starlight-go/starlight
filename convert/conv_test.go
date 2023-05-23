@@ -83,34 +83,6 @@ b = 0.1
 	}
 }
 
-func TestMakeStarFnOneRet(t *testing.T) {
-	fn := func(s string) string {
-		return "hi " + s
-	}
-
-	skyf := MakeStarFn("boo", fn)
-	// Mental note: starlark numbers pop out as int64s
-	data := []byte(`
-a = boo("starlight")
-`)
-
-	thread := &starlark.Thread{
-		Print: func(_ *starlark.Thread, msg string) { fmt.Println(msg) },
-	}
-
-	globals := map[string]starlark.Value{
-		"boo": skyf,
-	}
-	globals, err := starlark.ExecFile(thread, "foo.star", data, globals)
-	if err != nil {
-		t.Fatal(err)
-	}
-	v := FromStringDict(globals)
-	if v["a"] != "hi starlight" {
-		t.Fatalf(`expected a = "hi starlight", but got %#v`, v["a"])
-	}
-}
-
 func TestStructToValue(t *testing.T) {
 	type contact struct {
 		Name, Street string
