@@ -109,8 +109,33 @@ func TestMakeStarFnOneRetError(t *testing.T) {
 		"boo": skyf,
 	}
 
-	v, err := execStarlark(`err = boo("error")`, globals)
-	if err == nil {
-		t.Fatalf(`expected err = "error occurred", but got no err=%#v`, v)
+	if _, err := execStarlark(`err = boo("wtf")`, globals); err != nil {
+		t.Fatalf(`expected no err, but got err: %v`, err)
+	}
+	if v, err := execStarlark(`err = boo("error")`, globals); err == nil {
+		t.Fatalf(`expected err = "error occurred", but got no err: %v`, v)
+	}
+}
+
+// Test a function with one non-error return value and one error return value
+func TestMakeStarFnOneRetNonErrorAndError(t *testing.T) {
+	fn := func(s string) (string, error) {
+		if s == "error" {
+			return "", fmt.Errorf("error occurred")
+		}
+		return "hi " + s, nil
+	}
+
+	skyf := convert.MakeStarFn("boo", fn)
+
+	globals := map[string]starlark.Value{
+		"boo": skyf,
+	}
+
+	if v, err := execStarlark(`a = boo("starlight")`, globals); err != nil {
+		t.Fatalf(`expected a = "hi starlight", err = nil, but got a=%v, err=%v`, v, err)
+	}
+	if v, err := execStarlark(`a = boo("error")`, globals); err == nil {
+		t.Fatalf(`expected err = "error occurred", but got no err: a=%v`, v)
 	}
 }
