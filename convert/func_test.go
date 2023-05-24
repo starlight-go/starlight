@@ -12,6 +12,11 @@ import (
 )
 
 func TestVariadic(t *testing.T) {
+	gm := map[string]string{
+		"key": "value",
+	}
+	t.Logf("Go Map Print: %v", gm)
+
 	globals := map[string]interface{}{
 		"sprint":  fmt.Sprint,
 		"fatal":   t.Fatal,
@@ -22,16 +27,16 @@ func TestVariadic(t *testing.T) {
 def do(): 
 	v = sprint(False)
 	if v != "false" :
-		fatal("unexpected output: ", v)
+		fatal("unexpected output1: ", v)
 	v = sprint(False, 1)
 	if v != "false 1" :
-		fatal("unexpected output:", v)
+		fatal("unexpected output2:", v)
 	v = sprint(False, 1, " hi ", {"key":"value"})
-	if v != 'false 1 hi map[key:"value"]' :
-		fatal("unexpected output:", v)
+	if v != 'false 1 hi map[key:value]' :
+		fatal("unexpected output3:", v)
 	v = sprintf("this is your %dst formatted message", 1)
 	if v != "this is your 1st formatted message":
-		fatal("unexpected output:", v)
+		fatal("unexpected output4:", v)
 do()
 `)
 

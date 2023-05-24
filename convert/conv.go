@@ -1,3 +1,4 @@
+// Package convert provides functions for converting data and functions between Go and Starlark.
 package convert
 
 import (
@@ -29,9 +30,6 @@ func ToValue(v interface{}) (starlark.Value, error) {
 }
 
 func hasMethods(val reflect.Value) bool {
-	if !val.IsValid() {
-		return false
-	}
 	if val.NumMethod() > 0 {
 		return true
 	}
@@ -42,13 +40,19 @@ func hasMethods(val reflect.Value) bool {
 }
 
 func toValue(val reflect.Value) (starlark.Value, error) {
-	if hasMethods(val) {
-		// this handles all basic types with methods (numbers, strings, bools)
-		ifc, ok := makeGoInterface(val)
-		if ok {
-			return ifc, nil
+	if val.IsValid() {
+		if _, ok := val.Interface().(starlark.Value); ok {
+			// let starlark values pass through, if they are already
+			return val.Interface().(starlark.Value), nil
 		}
-		// TODO: maps, functions, and slices with methods
+		if hasMethods(val) {
+			// this handles all basic types with methods (numbers, strings, booleans)
+			ifc, ok := makeGoInterface(val)
+			if ok {
+				return ifc, nil
+			}
+			// TODO: maps, functions, and slices with methods
+		}
 	}
 
 	kind := val.Kind()
@@ -187,16 +191,16 @@ func makeDict(val reflect.Value) (starlark.Value, error) {
 	}
 	dict := starlark.Dict{}
 	for _, k := range val.MapKeys() {
-		key, err := toValue(k)
+		vk, err := toValue(k)
 		if err != nil {
 			return nil, err
 		}
 
-		val, err := toValue(val.MapIndex(k))
+		vv, err := toValue(val.MapIndex(k))
 		if err != nil {
 			return nil, err
 		}
-		dict.SetKey(key, val)
+		dict.SetKey(vk, vv)
 	}
 	return &dict, nil
 }
@@ -208,7 +212,8 @@ func FromDict(m *starlark.Dict) map[interface{}]interface{} {
 		key := FromValue(k)
 		// should never be not found or unhashable, so ignore err and found.
 		val, _, _ := m.Get(k)
-		ret[key] = val
+		//ret[key] = val
+		ret[key] = FromValue(val)
 	}
 	return ret
 }
@@ -375,7 +380,7 @@ func makeOut(out []reflect.Value) (starlark.Value, error) {
 		}
 		return v, err
 	}
-	// tuple-up multple values
+	// tuple-up multiple values
 	res := make([]starlark.Value, 0, len(out))
 	for i := range out {
 		val, err3 := toValue(out[i])

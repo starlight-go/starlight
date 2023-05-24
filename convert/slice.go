@@ -21,11 +21,11 @@ type GoSlice struct {
 	frozen bool
 }
 
-// NewGoMap wraps the given slice in a new GoSlice.  This function will panic if m
-// is not a map.
+// NewGoSlice wraps the given slice in a new GoSlice. This function will panic if m
+// is not a slice nor array.
 func NewGoSlice(slice interface{}) *GoSlice {
 	v := reflect.ValueOf(slice)
-	if v.Kind() != reflect.Slice || v.Kind() != reflect.Array {
+	if v.Kind() != reflect.Slice && v.Kind() != reflect.Array {
 		panic(fmt.Errorf("NewGoSlice expects a slice or array, but got %T", slice))
 	}
 	return &GoSlice{v: v}
@@ -40,6 +40,11 @@ func (g *GoSlice) String() string {
 // Type returns a short string describing the value's type.
 func (g *GoSlice) Type() string {
 	return fmt.Sprintf("starlight_slice<%T>", g.v.Interface())
+}
+
+// Value returns reflect.Value of the underlying slice.
+func (g *GoSlice) Value() reflect.Value {
+	return g.v
 }
 
 // Freeze causes the value, and all values transitively
@@ -92,16 +97,16 @@ func (g *GoSlice) SetIndex(index int, v starlark.Value) error {
 func (g *GoSlice) Slice(start, end, step int) starlark.Value {
 	// python slices are copies, so we don't just use .Slice here
 	if step == 1 {
-		copy := reflect.MakeSlice(g.v.Type(), end-start, end-start)
-		reflect.Copy(copy, g.v.Slice(start, end))
-		return &GoSlice{v: copy}
+		cp := reflect.MakeSlice(g.v.Type(), end-start, end-start)
+		reflect.Copy(cp, g.v.Slice(start, end))
+		return &GoSlice{v: cp}
 	}
-	copy := reflect.MakeSlice(g.v.Type().Elem(), 0, 0)
+	cp := reflect.MakeSlice(g.v.Type().Elem(), 0, 0)
 	sign := signOf(step)
 	for i := start; signOf(end-i) == sign; i += step {
-		copy = reflect.Append(copy, g.v.Index(i))
+		cp = reflect.Append(cp, g.v.Index(i))
 	}
-	return &GoSlice{v: copy}
+	return &GoSlice{v: cp}
 }
 
 func signOf(i int) int {

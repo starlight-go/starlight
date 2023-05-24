@@ -101,6 +101,11 @@ func (g *GoStruct) Type() string {
 	return fmt.Sprintf("starlight_struct<%T>", g.v.Interface())
 }
 
+// Value returns reflect.Value of the underlying struct.
+func (g *GoStruct) Value() reflect.Value {
+	return g.v
+}
+
 // Freeze causes the value, and all values transitively
 // reachable from it through collections and closures, to be
 // marked as frozen.  All subsequent mutations to the data

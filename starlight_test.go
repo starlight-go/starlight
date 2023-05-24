@@ -67,13 +67,10 @@ func TestAllDirs(t *testing.T) {
 }
 
 func TestRerun(t *testing.T) {
-	dir, cleanup := makeScript(t, "foo.star",
-		`output = input + " world!"`)
-
+	dir, cleanup := makeScript(t, "foo.star", `output = input + " world!"`)
 	defer cleanup()
 
 	s := New(dir)
-
 	actual, err := s.Run("foo.star", map[string]interface{}{
 		"input": "hello",
 	})
@@ -139,7 +136,6 @@ func TestRerun(t *testing.T) {
 	if actual["output"] != "bye!" {
 		t.Fatalf(`expected "bye!" but got %q`, actual["output"])
 	}
-
 }
 
 func TestEval(t *testing.T) {

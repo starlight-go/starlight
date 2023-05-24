@@ -33,6 +33,24 @@ func TestToValue(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:    "starlark none value",
+			v:       starlark.None,
+			want:    starlark.None,
+			wantErr: false,
+		},
+		{
+			name:    "starlark string value",
+			v:       starlark.String("test"),
+			want:    starlark.String("test"),
+			wantErr: false,
+		},
+		{
+			name:    "starlark int value",
+			v:       starlark.MakeInt(123),
+			want:    starlark.MakeInt(123),
+			wantErr: false,
+		},
+		{
 			name:    "string to value",
 			v:       "test",
 			want:    starlark.String("test"),
@@ -147,11 +165,11 @@ func TestFromValue(t *testing.T) {
 			v:    starlark.Tuple([]starlark.Value{starlark.String("a"), starlark.String("b")}),
 			want: []interface{}{"a", "b"},
 		},
-		//{
-		//	name: "Dict",
-		//	v:    slDict,
-		//	want: map[interface{}]interface{}{"a": "b"},
-		//},
+		{
+			name: "Dict",
+			v:    slDict,
+			want: map[interface{}]interface{}{"a": "b"},
+		},
 		{
 			name: "Set",
 			v:    slSet,
@@ -186,7 +204,6 @@ func TestFromValue(t *testing.T) {
 		{
 			name: "Default",
 			v:    &customType{}, // assuming customType is a starlark.Value
-			// The last test case is not completed. Let's complete it.
 			want: &customType{}, // assuming FromValue returns the original value if it doesn't know how to convert it
 		},
 		{
@@ -218,6 +235,9 @@ func (c *customType) Freeze()               {}
 func (c *customType) Truth() starlark.Bool  { return starlark.True }
 func (c *customType) Hash() (uint32, error) { return 0, nil }
 
+// Assuming this is a custom type that doesn't implement starlark.Callable
+type unknownType struct{}
+
 // Generate Starlark Functions
 
 func getSimpleStarlarkFunc() *starlark.Function {
@@ -231,4 +251,310 @@ def double(x):
 		panic(err)
 	}
 	return globals["double"].(*starlark.Function)
+}
+
+func TestMakeDict(t *testing.T) {
+	sd1 := starlark.NewDict(1)
+	_ = sd1.SetKey(starlark.String("a"), starlark.String("b"))
+
+	sd2 := starlark.NewDict(1)
+	_ = sd2.SetKey(starlark.String("a"), starlark.MakeInt(1))
+
+	vf3 := 2
+	sd3 := starlark.NewDict(1)
+	_ = sd3.SetKey(starlark.String("a"), starlark.Float(vf3))
+
+	sd4 := starlark.NewDict(1)
+	_ = sd4.SetKey(starlark.String("a"), NewGoSlice([]string{"b", "c"}))
+
+	sd5 := starlark.NewDict(1)
+	_ = sd5.SetKey(starlark.String("a"), MakeGoInterface("b"))
+
+	sd6 := starlark.NewDict(1)
+	_ = sd6.SetKey(starlark.MakeInt(10), starlark.Tuple{starlark.String("a")})
+
+	tests := []struct {
+		name    string
+		v       interface{}
+		want    starlark.Value
+		wantErr bool
+	}{
+		{
+			name: "map[string]string",
+			v:    map[string]string{"a": "b"},
+			want: sd1,
+		},
+		{
+			name: "map[string]int",
+			v:    map[string]int{"a": 1},
+			want: sd2,
+		},
+		{
+			name: "map[string]float32",
+			v:    map[string]float32{"a": float32(vf3)},
+			want: sd3,
+		},
+		{
+			name: "map[string][]string",
+			v:    map[string][]string{"a": {"b", "c"}},
+			want: sd4,
+		},
+		{
+			name: "map[string]interface{}",
+			v:    map[string]interface{}{"a": "b"},
+			want: sd5,
+		},
+		{
+			name: "map[starlark.String]starlark.String",
+			v:    map[starlark.String]starlark.String{"a": starlark.String("b")},
+			want: sd1,
+		},
+		{
+			name: "map[starlark.Int]starlark.Tuple",
+			v:    map[starlark.Int]starlark.Tuple{starlark.MakeInt(10): {starlark.String("a")}},
+			want: sd6,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := MakeDict(tt.v)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("MakeDict(%v) error = %v, wantErr %v", tt.v, err, tt.wantErr)
+				return
+			}
+			if !(reflect.DeepEqual(got, tt.want) || got.String() == tt.want.String()) {
+				t.Errorf("MakeDict(%v) got = %v, want %v", tt.v, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFromDict(t *testing.T) {
+	sd1 := starlark.NewDict(1)
+	_ = sd1.SetKey(starlark.String("a"), starlark.String("b"))
+
+	sd2 := starlark.NewDict(1)
+	_ = sd2.SetKey(starlark.String("a"), starlark.MakeInt(1))
+
+	vf3 := 2
+	sd3 := starlark.NewDict(1)
+	_ = sd3.SetKey(starlark.String("a"), starlark.Float(vf3))
+
+	sd4 := starlark.NewDict(1)
+	_ = sd4.SetKey(starlark.String("a"), NewGoSlice([]string{"b", "c"}))
+
+	sd5 := starlark.NewDict(1)
+	_ = sd5.SetKey(starlark.String("a"), MakeGoInterface("b"))
+
+	sd6 := starlark.NewDict(1)
+	_ = sd6.SetKey(starlark.MakeInt(10), starlark.Tuple{starlark.String("a")})
+
+	tests := []struct {
+		name string
+		v    *starlark.Dict
+		want map[interface{}]interface{}
+	}{
+		{
+			name: "map[string]string",
+			v:    sd1,
+			want: map[interface{}]interface{}{"a": "b"},
+		},
+		{
+			name: "map[string]int64",
+			v:    sd2,
+			want: map[interface{}]interface{}{"a": int64(1)},
+		},
+		{
+			name: "map[string]float32",
+			v:    sd3,
+			want: map[interface{}]interface{}{"a": float64(vf3)},
+		},
+		{
+			name: "map[string][]string",
+			v:    sd4,
+			want: map[interface{}]interface{}{"a": []string{"b", "c"}},
+		},
+		{
+			name: "map[string]interface{}",
+			v:    sd5,
+			want: map[interface{}]interface{}{"a": "b"},
+		},
+		{
+			name: "map[starlark.String]starlark.String",
+			v:    sd1,
+			want: map[interface{}]interface{}{"a": "b"},
+		},
+		{
+			name: "map[starlark.Int]starlark.Tuple",
+			v:    sd6,
+			want: map[interface{}]interface{}{int64(10): []interface{}{"a"}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := FromDict(tt.v)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("FromDict(%v) = %v, want %v", tt.v, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMakeSet(t *testing.T) {
+	s1 := starlark.NewSet(1)
+	_ = s1.Insert(starlark.String("a"))
+
+	s2 := starlark.NewSet(1)
+	_ = s2.Insert(starlark.MakeInt(1))
+
+	s3 := starlark.NewSet(2)
+	_ = s3.Insert(starlark.String("a"))
+	_ = s3.Insert(starlark.String("b"))
+
+	tests := []struct {
+		name    string
+		s       map[interface{}]bool
+		want    *starlark.Set
+		wantErr bool
+	}{
+		{
+			name: "set[string]",
+			s:    map[interface{}]bool{"a": true},
+			want: s1,
+		},
+		{
+			name: "set[int]",
+			s:    map[interface{}]bool{1: true},
+			want: s2,
+		},
+		{
+			name: "set[string,string]",
+			s:    map[interface{}]bool{"a": true, "b": true},
+			want: s3,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := MakeSet(tt.s)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("MakeSet(%v) error = %v, wantErr %v", tt.s, err, tt.wantErr)
+				return
+			}
+			if eq, err := starlark.Equal(got, tt.want); !eq || err != nil {
+				t.Errorf("MakeSet(%v) = %v, want %v", tt.s, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFromSet(t *testing.T) {
+	s1 := starlark.NewSet(1)
+	_ = s1.Insert(starlark.String("a"))
+
+	s2 := starlark.NewSet(1)
+	_ = s2.Insert(starlark.MakeInt(200))
+
+	s3 := starlark.NewSet(2)
+	_ = s3.Insert(starlark.String("a"))
+	_ = s3.Insert(starlark.String("b"))
+
+	tests := []struct {
+		name string
+		s    *starlark.Set
+		want map[interface{}]bool
+	}{
+		{
+			name: "set[string]",
+			s:    s1,
+			want: map[interface{}]bool{"a": true},
+		},
+		{
+			name: "set[int]",
+			s:    s2,
+			want: map[interface{}]bool{int64(200): true},
+		},
+		{
+			name: "set[string,string]",
+			s:    s3,
+			want: map[interface{}]bool{"a": true, "b": true},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := FromSet(tt.s)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("FromSet(%v) = %v, want %v", tt.s, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFromTuple(t *testing.T) {
+	tuple1 := starlark.Tuple{starlark.String("a")}
+	tuple2 := starlark.Tuple{starlark.MakeInt(100)}
+	tuple3 := starlark.Tuple{starlark.String("a"), starlark.String("b")}
+	tests := []struct {
+		name string
+		v    starlark.Tuple
+		want []interface{}
+	}{
+		{
+			name: "tuple[string]",
+			v:    tuple1,
+			want: []interface{}{"a"},
+		},
+		{
+			name: "tuple[int]",
+			v:    tuple2,
+			want: []interface{}{int64(100)},
+		},
+		{
+			name: "tuple[string, string]",
+			v:    tuple3,
+			want: []interface{}{"a", "b"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := FromTuple(tt.v)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("FromTuple(%v) = %v, want %v", tt.v, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFromList(t *testing.T) {
+	l1 := starlark.NewList([]starlark.Value{starlark.String("a")})
+	l2 := starlark.NewList([]starlark.Value{starlark.MakeInt(200)})
+	l3 := starlark.NewList([]starlark.Value{starlark.String("a"), starlark.String("b")})
+	tests := []struct {
+		name string
+		l    *starlark.List
+		want []interface{}
+	}{
+		{
+			name: "list[string]",
+			l:    l1,
+			want: []interface{}{"a"},
+		},
+		{
+			name: "list[int]",
+			l:    l2,
+			want: []interface{}{int64(200)},
+		},
+		{
+			name: "list[string, string]",
+			l:    l3,
+			want: []interface{}{"a", "b"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := FromList(tt.l)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("FromList(%v) = %v, want %v", tt.l, got, tt.want)
+			}
+		})
+	}
 }

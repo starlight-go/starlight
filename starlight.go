@@ -1,4 +1,4 @@
-// Package starlight provides a convenience wrapper around github.com/google/starlark-go.
+// Package starlight provides a convenience wrapper around go.starlark.net/starlark.
 package starlight
 
 import (
