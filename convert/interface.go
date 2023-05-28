@@ -8,8 +8,8 @@ import (
 	"go.starlark.net/starlark"
 )
 
-// MakeGoInterface converts the given value into a GoInterface.  This will panic
-// if the type is not a bool, string, float kind, int kind, or uint kind .
+// MakeGoInterface converts the given value into a GoInterface. This will panic
+// if the type is not a bool, string, float kind, int kind, or uint kind.
 func MakeGoInterface(v interface{}) *GoInterface {
 	val := reflect.ValueOf(v)
 	ifc, ok := makeGoInterface(val)
@@ -164,7 +164,7 @@ func (g *GoInterface) ToBool() (bool, error) {
 }
 
 // ToUint converts the interface value into a starlark int.  This will fail if
-// the underlying type is not a uint type or pointer to an uint type.
+// the underlying type is not an uint type or pointer to an uint type.
 func (g *GoInterface) ToUint() (uint64, error) {
 	v := g.v
 	if v.Kind() == reflect.Ptr {

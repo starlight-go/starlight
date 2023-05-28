@@ -1,6 +1,7 @@
 package convert_test
 
 import (
+	"fmt"
 	"reflect"
 	"runtime"
 	"testing"
@@ -17,6 +18,14 @@ func (a *assert) Eq(expected, got interface{}) {
 		_, file, line, _ := runtime.Caller(13)
 		a.t.Fatalf("\n%v:%v: - expected %#v (%T) to be equal to %#v (%T)\n", file, line, expected, expected, got, got)
 	}
+}
+
+func (a *assert) Equal(expected, got interface{}) error {
+	if !reflect.DeepEqual(expected, got) {
+		_, file, line, _ := runtime.Caller(13)
+		return fmt.Errorf("%v:%v: - expected %#v (%T) to be equal to %#v (%T)\n", file, line, expected, expected, got, got)
+	}
+	return nil
 }
 
 type fail struct {

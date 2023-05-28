@@ -1,6 +1,7 @@
 package convert
 
 import (
+	"math/big"
 	"reflect"
 	"testing"
 
@@ -8,6 +9,7 @@ import (
 )
 
 func TestToValue(t *testing.T) {
+	bigVal := big.NewInt(1).Mul(big.NewInt(100000000000000), big.NewInt(100000000000000))
 	tests := []struct {
 		name    string
 		v       interface{}
@@ -63,6 +65,16 @@ func TestToValue(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "not big int to value",
+			v:    big.NewInt(123),
+			want: starlark.MakeInt(123),
+		},
+		{
+			name: "big int to value",
+			v:    bigVal,
+			want: starlark.MakeBigInt(bigVal),
+		},
+		{
 			name:    "bool to value",
 			v:       true,
 			want:    starlark.Bool(true),
@@ -75,8 +87,20 @@ func TestToValue(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:    "big float to value",
+			v:       big.NewFloat(123.456),
+			want:    starlark.Float(123.456),
+			wantErr: false,
+		},
+		{
 			name:    "slice to value",
 			v:       []int{1, 2, 3},
+			want:    &GoSlice{v: reflect.ValueOf([]int{1, 2, 3})},
+			wantErr: false,
+		},
+		{
+			name:    "array to value",
+			v:       [3]int{1, 2, 3},
 			want:    &GoSlice{v: reflect.ValueOf([]int{1, 2, 3})},
 			wantErr: false,
 		},
@@ -87,9 +111,27 @@ func TestToValue(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "struct to value",
+			name:    "map slice to value",
+			v:       map[string][]int{"one": {1, 2}, "two": {3, 4}},
+			want:    &GoMap{v: reflect.ValueOf(map[string][]int{"one": {1, 2}, "two": {3, 4}})},
+			wantErr: false,
+		},
+		{
+			name:    "empty struct to value",
+			v:       struct{}{},
+			want:    &GoStruct{v: reflect.ValueOf(struct{}{})},
+			wantErr: false,
+		},
+		{
+			name:    "custom struct to value",
 			v:       struct{ Name string }{Name: "test"},
 			want:    &GoStruct{v: reflect.ValueOf(struct{ Name string }{Name: "test"})},
+			wantErr: false,
+		},
+		{
+			name:    "lib struct to value",
+			v:       big.NewRat(1, 3),
+			want:    &GoStruct{v: reflect.ValueOf(big.NewRat(1, 3))},
 			wantErr: false,
 		},
 		{
@@ -99,7 +141,7 @@ func TestToValue(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "unsupported type",
+			name:    "unsupported type: channel",
 			v:       make(chan int),
 			want:    nil,
 			wantErr: true,
@@ -130,6 +172,8 @@ func TestFromValue(t *testing.T) {
 	testBuiltin := makeStarFn("fn", reflect.ValueOf(func() string { return "test" }))
 	testFunction := getSimpleStarlarkFunc()
 
+	bigVal := big.NewInt(1).Mul(big.NewInt(100000000000000), big.NewInt(100000000000000))
+
 	tests := []struct {
 		name string
 		v    starlark.Value
@@ -144,6 +188,11 @@ func TestFromValue(t *testing.T) {
 			name: "Int",
 			v:    starlark.MakeInt(123),
 			want: int64(123),
+		},
+		{
+			name: "BigInt",
+			v:    starlark.MakeBigInt(bigVal),
+			want: bigVal,
 		},
 		{
 			name: "Float",

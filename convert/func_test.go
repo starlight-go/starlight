@@ -11,6 +11,21 @@ import (
 	"go.starlark.net/starlark"
 )
 
+// Helper function to execute a Starlark script with given global functions and data
+func execStarlark(script string, envs map[string]starlark.Value) (map[string]interface{}, error) {
+	thread := &starlark.Thread{
+		Print: func(_ *starlark.Thread, msg string) { fmt.Println(msg) },
+	}
+
+	data := []byte(script)
+	globals, err := starlark.ExecFile(thread, "foo.star", data, envs)
+	if err != nil {
+		return nil, err
+	}
+
+	return convert.FromStringDict(globals), nil
+}
+
 func TestVariadic(t *testing.T) {
 	gm := map[string]string{
 		"key": "value",
@@ -72,21 +87,6 @@ a = boo("starlight")
 	if v["a"] != "hi starlight" {
 		t.Fatalf(`expected a = "hi starlight", but got %#v`, v["a"])
 	}
-}
-
-// Helper function to execute a Starlark script with given global functions and data
-func execStarlark(script string, globals map[string]starlark.Value) (map[string]interface{}, error) {
-	thread := &starlark.Thread{
-		Print: func(_ *starlark.Thread, msg string) { fmt.Println(msg) },
-	}
-
-	data := []byte(script)
-	globals, err := starlark.ExecFile(thread, "foo.star", data, globals)
-	if err != nil {
-		return nil, err
-	}
-
-	return convert.FromStringDict(globals), nil
 }
 
 // Test a function with no return value
