@@ -92,7 +92,7 @@ func TestRerun(t *testing.T) {
 		t.Fatalf(`expected "goodbye world!" but got %q`, actual["output"])
 	}
 
-	// change script, shouldn't change output sicne we cached it
+	// change script, shouldn't change output since we cached it
 	err = ioutil.WriteFile(filepath.Join(dir, "foo.star"), []byte(`output = "hi!"`), 0600)
 	if err != nil {
 		t.Fatal(err)

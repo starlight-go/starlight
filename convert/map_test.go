@@ -177,7 +177,7 @@ setIndex(x9, [], 2)
 `)
 
 	_, err = starlight.Eval(code, globals, nil)
-	expectErr(t, err, `reflect.Value.Convert: value of type []interface {} cannot be converted to type string`)
+	expectErr(t, err, `reflect.Value.SetMapIndex: value of type []interface {} is not assignable to type string`)
 
 	v, err := convert.ToValue(x9)
 	if err != nil {
@@ -191,7 +191,6 @@ x9["a"] = 3
 
 	_, err = starlight.Eval(code, map[string]interface{}{"x9": v}, nil)
 	expectErr(t, err, `cannot insert into frozen map`)
-
 }
 
 func expectErr(t *testing.T, err error, expected string) {

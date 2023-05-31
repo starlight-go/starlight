@@ -440,11 +440,13 @@ func updateDict(dict *GoMap, updates starlark.Tuple, kwargs []starlark.Tuple) er
 	return nil
 }
 
-// conv tries to convert v to t if v is not assignable to t.
+// Deprecated: conv tries to convert v to t if v is not assignable to t.
 func conv(v starlark.Value, t reflect.Type) reflect.Value {
 	out := reflect.ValueOf(FromValue(v))
 	if !out.Type().AssignableTo(t) {
-		return out.Convert(t)
+		if out.Type().ConvertibleTo(t) {
+			return out.Convert(t)
+		}
 	}
 	return out
 }

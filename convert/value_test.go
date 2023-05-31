@@ -25,14 +25,12 @@ func TestToValue(t *testing.T) {
 		{
 			name:    "typed nil to none",
 			v:       (*string)(nil),
-			want:    starlark.None,
-			wantErr: false,
+			wantErr: true,
 		},
 		{
 			name:    "starlark typed nil to none",
 			v:       (*starlark.Value)(nil),
-			want:    starlark.None,
-			wantErr: false,
+			wantErr: true,
 		},
 		{
 			name:    "starlark none value",

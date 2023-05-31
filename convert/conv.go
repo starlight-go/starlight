@@ -39,7 +39,13 @@ func hasMethods(val reflect.Value) bool {
 	return false
 }
 
-func toValue(val reflect.Value) (starlark.Value, error) {
+func toValue(val reflect.Value) (result starlark.Value, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panic recovered: %v", r)
+		}
+	}()
+
 	if val.IsValid() {
 		if _, ok := val.Interface().(starlark.Value); ok {
 			// let Starlark values pass through, no conversion needed
@@ -57,8 +63,16 @@ func toValue(val reflect.Value) (starlark.Value, error) {
 
 	kind := val.Kind()
 	if kind == reflect.Ptr {
-		kind = val.Elem().Kind()
+		if val.Elem().IsValid() {
+			kind = val.Elem().Kind()
+		} else {
+			// If the pointer is nil and points to a struct, make a GoInterface for it
+			if val.Type().Elem().Kind() == reflect.Struct {
+				return &GoInterface{v: val}, nil
+			}
+		}
 	}
+
 	switch kind {
 	case reflect.Bool:
 		return starlark.Bool(val.Bool()), nil
@@ -295,10 +309,18 @@ func makeStarFn(name string, gofn reflect.Value) *starlark.Builtin {
 	if gofn.Type().IsVariadic() {
 		return makeVariadicStarFn(name, gofn)
 	}
-	return starlark.NewBuiltin(name, func(thread *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+	return starlark.NewBuiltin(name, func(thread *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (sv starlark.Value, ef error) {
+		defer func() {
+			if r := recover(); r != nil {
+				sv = starlark.None
+				ef = fmt.Errorf("panic in func %s: %v", name, r)
+			}
+		}()
+
 		if len(args) != gofn.Type().NumIn() {
 			return starlark.None, fmt.Errorf("expected %d args but got %d", gofn.Type().NumIn(), len(args))
 		}
+
 		vals := FromTuple(args)
 		rvs := make([]reflect.Value, 0, len(vals))
 		for i, v := range vals {
@@ -313,13 +335,21 @@ func makeStarFn(name string, gofn reflect.Value) *starlark.Builtin {
 
 			rvs = append(rvs, val)
 		}
+
 		out := gofn.Call(rvs)
 		return makeOut(out)
 	})
 }
 
 func makeVariadicStarFn(name string, gofn reflect.Value) *starlark.Builtin {
-	return starlark.NewBuiltin(name, func(thread *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+	return starlark.NewBuiltin(name, func(thread *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (sv starlark.Value, ef error) {
+		defer func() {
+			if r := recover(); r != nil {
+				sv = starlark.None
+				ef = fmt.Errorf("panic in func %s: %v", name, r)
+			}
+		}()
+
 		minArgs := gofn.Type().NumIn() - 1
 		if len(args) < minArgs {
 			return starlark.None, fmt.Errorf("expected at least %d args but got %d", minArgs, len(args))
@@ -515,4 +545,16 @@ func convertNumericTypes(value interface{}, targetType reflect.Type) interface{}
 		}
 	}
 	return value
+}
+
+// tryConv tries to convert v to t if v is not assignable to t.
+func tryConv(v starlark.Value, t reflect.Type) (reflect.Value, error) {
+	out := reflect.ValueOf(FromValue(v))
+	if !out.Type().AssignableTo(t) {
+		if out.Type().ConvertibleTo(t) {
+			return out.Convert(t), nil
+		}
+		return reflect.Value{}, fmt.Errorf("value of type %s cannot be converted to type %s", out.Type(), t)
+	}
+	return out, nil
 }

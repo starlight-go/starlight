@@ -14,7 +14,7 @@ import (
 // Helper function to execute a Starlark script with given global functions and data
 func execStarlark(script string, envs map[string]starlark.Value) (map[string]interface{}, error) {
 	thread := &starlark.Thread{
-		Print: func(_ *starlark.Thread, msg string) { fmt.Println(msg) },
+		Print: func(_ *starlark.Thread, msg string) { fmt.Println("❤", msg) },
 	}
 
 	data := []byte(script)

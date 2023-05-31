@@ -142,8 +142,8 @@ func TestStructPtrCallMethod(t *testing.T) {
 
 func TestMap(t *testing.T) {
 	m := map[string]*contact{
-		"bill": &contact{Name: "bill smith"},
-		"mary": &contact{Name: "mary smith"},
+		"bill": {Name: "bill smith"},
+		"mary": {Name: "mary smith"},
 	}
 
 	out, err := starlight.Eval([]byte(`out = contacts["bill"].Name`), map[string]interface{}{"contacts": m}, nil)
@@ -219,8 +219,8 @@ func TestNamedTypeField(t *testing.T) {
 
 func TestStructPtrMap(t *testing.T) {
 	m := map[string]*contact{
-		"bill": &contact{Name: "bill smith"},
-		"mary": &contact{Name: "mary smith"},
+		"bill": {Name: "bill smith"},
+		"mary": {Name: "mary smith"},
 	}
 
 	_, err := starlight.Eval([]byte(`contacts["bill"].Name = "john smith"`), map[string]interface{}{"contacts": m}, nil)
@@ -251,8 +251,8 @@ func TestModMap(t *testing.T) {
 
 func TestMapItems(t *testing.T) {
 	m := map[string]*contact{
-		"bill": &contact{Name: "bill smith"},
-		"mary": &contact{Name: "mary smith"},
+		"bill": {Name: "bill smith"},
+		"mary": {Name: "mary smith"},
 	}
 	output := map[string]string{}
 	record := func(k, v string) {
@@ -277,8 +277,8 @@ do()
 
 func TestIndexSliceItems(t *testing.T) {
 	slice := []*contact{
-		&contact{Name: "bill smith"},
-		&contact{Name: "mary smith"},
+		{Name: "bill smith"},
+		{Name: "mary smith"},
 	}
 	code := []byte(`
 out = contacts[1].Name

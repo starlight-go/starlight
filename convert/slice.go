@@ -216,7 +216,10 @@ func list_append(fnname string, g *GoSlice, args starlark.Tuple, kwargs []starla
 	if err := g.checkMutable("append to"); err != nil {
 		return nil, err
 	}
-	v := conv(args[0], g.v.Type().Elem())
+	v, err := tryConv(args[0], g.v.Type().Elem())
+	if err != nil {
+		return nil, fmt.Errorf("append: %v", err)
+	}
 	g.v = reflect.Append(g.v, v)
 	return starlark.None, nil
 }

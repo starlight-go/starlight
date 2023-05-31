@@ -83,7 +83,10 @@ func (g *GoStruct) SetField(name string, val starlark.Value) error {
 	}
 	field := v.FieldByName(name)
 	if field.CanSet() {
-		val := conv(val, field.Type())
+		val, err := tryConv(val, field.Type())
+		if err != nil {
+			return err
+		}
 		field.Set(val)
 		return nil
 	}

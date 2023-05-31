@@ -34,7 +34,7 @@ func("a", 1, foo=1, bar=2)
 	globals := map[string]starlark.Value{
 		"func": starlark.NewBuiltin("func", fn),
 	}
-	globals, err := starlark.ExecFile(thread, "foo.star", data, globals)
+	_, err := starlark.ExecFile(thread, "foo.star", data, globals)
 	if err != nil {
 		t.Fatal(err)
 	}
