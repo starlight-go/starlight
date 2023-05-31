@@ -21,3 +21,6 @@ vendor
 
 # stupid osx
 .DS_Store
+
+# Projects
+coverage.txt

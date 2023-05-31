@@ -1,5 +1,9 @@
 # Starlight Enhanced
 
+[![codecov](https://codecov.io/github/1set/starlight/branch/master/graph/badge.svg?token=yDu7JCcMHv)](https://codecov.io/github/1set/starlight)
+[![codacy](https://app.codacy.com/project/badge/Grade/211835be0f0241269e38fd8913648e1e)](https://app.codacy.com/gh/1set/starlight/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
+[![codeclimate](https://api.codeclimate.com/v1/badges/20035dc9703387ad14c6/maintainability)](https://codeclimate.com/github/1set/starlight/maintainability)
+
 Welcome to Starlight Enhanced, a sophisticated fork of the original [Starlight](https://github.com/starlight-go/starlight) project. Our version builds upon the Starlight wrapper for [starlark-go](https://github.com/google/starlark-go) to facilitate smoother data conversion between Go and Starlark.
 
 Due to the lack of ongoing maintenance of the original Starlight project, we saw an opportunity to breathe new life into it. We've optimized it to work seamlessly with the latest versions of starlark-go while addressing and rectifying bugs present in the original repository.
