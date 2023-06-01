@@ -65,6 +65,16 @@ func toValue(val reflect.Value) (result starlark.Value, err error) {
 	if kind == reflect.Ptr {
 		if val.Elem().IsValid() {
 			kind = val.Elem().Kind()
+			// for pointers to basic types, dereference them
+			switch kind {
+			case reflect.Bool,
+				reflect.String,
+				reflect.Float32, reflect.Float64,
+				reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+				reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+				reflect.Slice, reflect.Array, reflect.Map:
+				val = val.Elem()
+			}
 		} else {
 			// If the pointer is nil and points to a struct, make a GoInterface for it
 			if val.Type().Elem().Kind() == reflect.Struct {
@@ -268,7 +278,7 @@ type Kwarg struct {
 	Value interface{}
 }
 
-// FromKwargs converts a python style name=val, name2=val2 list of tuples into a
+// FromKwargs converts a Python style name=val, name2=val2 list of tuples into a
 // []Kwarg.  It is an error if any tuple is not exactly 2 values,
 // or if the first one is not a string.
 func FromKwargs(kwargs []starlark.Tuple) ([]Kwarg, error) {
@@ -321,6 +331,7 @@ func makeStarFn(name string, gofn reflect.Value) *starlark.Builtin {
 			return starlark.None, fmt.Errorf("expected %d args but got %d", gofn.Type().NumIn(), len(args))
 		}
 
+		// convert all the args, but kwargs are ignored
 		vals := FromTuple(args)
 		rvs := make([]reflect.Value, 0, len(vals))
 		for i, v := range vals {
@@ -354,6 +365,8 @@ func makeVariadicStarFn(name string, gofn reflect.Value) *starlark.Builtin {
 		if len(args) < minArgs {
 			return starlark.None, fmt.Errorf("expected at least %d args but got %d", minArgs, len(args))
 		}
+
+		// convert all the args, but kwargs are ignored
 		vals := FromTuple(args)
 		rvs := make([]reflect.Value, 0, len(args))
 
@@ -502,6 +515,7 @@ func convertElemValue(val reflect.Value, targetType reflect.Type) (reflect.Value
 			if unwrapped.Type().ConvertibleTo(targetType) {
 				return unwrapped.Convert(targetType), nil
 			} else if sv, ok := unwrapped.Interface().(starlark.Value); ok {
+				// TODO: this path is not reachable in the current test, maybe we can remove it?
 				goVal := FromValue(sv)
 				goVal = convertNumericTypes(goVal, targetType)
 				if reflect.TypeOf(goVal) != targetType {

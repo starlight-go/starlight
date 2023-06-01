@@ -1,5 +1,6 @@
 # Starlight Enhanced
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/1set/starlight.svg)](https://pkg.go.dev/github.com/1set/starlight)
 [![codecov](https://codecov.io/github/1set/starlight/branch/master/graph/badge.svg?token=yDu7JCcMHv)](https://codecov.io/github/1set/starlight)
 [![codacy](https://app.codacy.com/project/badge/Grade/211835be0f0241269e38fd8913648e1e)](https://app.codacy.com/gh/1set/starlight/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![codeclimate](https://api.codeclimate.com/v1/badges/20035dc9703387ad14c6/maintainability)](https://codeclimate.com/github/1set/starlight/maintainability)

@@ -387,6 +387,26 @@ func TestCallGoFunctionInStarlark(t *testing.T) {
 			wantEqual:    true,
 		},
 		{
+			name:        "fmt.Errorf",
+			goFunc:      fmt.Errorf,
+			codeSnippet: `sl_value = go_func("maybe an error")`,
+			wantErrExec: true,
+		},
+		{
+			name:         "fmt.Sprintf",
+			goFunc:       fmt.Sprintf,
+			codeSnippet:  `sl_value = go_func("Hello %s! #%d", "World", 42)`,
+			expectResult: `Hello World! #42`,
+			wantEqual:    true,
+		},
+		{
+			name:         "strings.Repeat",
+			goFunc:       strings.Repeat,
+			codeSnippet:  `sl_value = go_func("Hello ", 3)`,
+			expectResult: `Hello Hello Hello `,
+			wantEqual:    true,
+		},
+		{
 			name: "unsupported func(chan) int",
 			goFunc: func(ch chan int) int {
 				return <-ch
@@ -420,7 +440,7 @@ func TestCallGoFunctionInStarlark(t *testing.T) {
 			wantEqual:    true,
 		},
 		{
-			name: "invalid pointer: func(*string) string",
+			name: "pointer as invalid argument: func(*string) string",
 			goFunc: func(name *string) string {
 				if name == nil {
 					return "Hello World!"
@@ -431,7 +451,7 @@ func TestCallGoFunctionInStarlark(t *testing.T) {
 			wantErrExec: true,
 		},
 		{
-			name: "invalid pointer: func(string) *string",
+			name: "pointer as return: func(string) *string",
 			goFunc: func(name string) *string {
 				return &name
 			},
@@ -439,6 +459,16 @@ func TestCallGoFunctionInStarlark(t *testing.T) {
 sl_value = go_func("World")
 print('※ sl_value: {}({})'.format(sl_value, type(sl_value)))
 `,
+			expectResult: "World",
+			wantEqual:    true,
+		},
+		{
+			name: "pointer as return for nil: func(string) *string",
+			goFunc: func(name string) *string {
+				return nil
+			},
+			codeSnippet: `sl_value = go_func("World")`,
+			wantErrExec: true,
 		},
 		{
 			name: "func([]string) (string)",

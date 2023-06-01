@@ -70,10 +70,10 @@ b = 0.1
 		Print: func(_ *starlark.Thread, msg string) { fmt.Println(msg) },
 	}
 
-	globals := map[string]starlark.Value{
+	envs := map[string]starlark.Value{
 		"boo": skyf,
 	}
-	globals, err := starlark.ExecFile(thread, "foo.star", data, globals)
+	globals, err := starlark.ExecFile(thread, "foo.star", data, envs)
 	if err != nil {
 		t.Fatal(err)
 	}

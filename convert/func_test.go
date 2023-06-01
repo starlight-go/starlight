@@ -335,6 +335,7 @@ func TestMakeStarFnArgumentType(t *testing.T) {
 	type testCase struct {
 		name          string
 		funcToConvert interface{}
+		valToPass     interface{}
 		codeSnippet   string
 		shouldPanic   bool
 		wantErr       bool
@@ -420,6 +421,38 @@ func TestMakeStarFnArgumentType(t *testing.T) {
 			codeSnippet: `x = boo({"a": 1, "b": 2})`,
 		},
 		{
+			name: "Call with map typed argument using starlark.Value",
+			funcToConvert: func(a map[string]int8) int {
+				return len(a)
+			},
+			valToPass:   100,
+			codeSnippet: `x = boo({"a": val, "b": val})`,
+		},
+		{
+			name: "Call with map starlark interface argument",
+			funcToConvert: func(a map[string]starlark.Value) int {
+				return len(a)
+			},
+			codeSnippet: `x = boo({"a": 1, "b": 2})`,
+			wantErr:     true,
+		},
+		{
+			name: "Call with map starlark int argument",
+			funcToConvert: func(a map[string]starlark.Int) int {
+				return len(a)
+			},
+			codeSnippet: `x = boo({"a": 1, "b": 2})`,
+			wantErr:     true,
+		},
+		{
+			name: "Call with nested map argument (not handle yet)",
+			funcToConvert: func(a map[string]map[string]int) int {
+				return len(a)
+			},
+			codeSnippet: `x = boo({"a": {"b": 1}})`,
+			wantErr:     true,
+		},
+		{
 			name: "Call with nested map argument (not handle yet)",
 			funcToConvert: func(a map[string]map[string]int) int {
 				return len(a)
@@ -430,6 +463,31 @@ func TestMakeStarFnArgumentType(t *testing.T) {
 		{
 			name: "Call with nested map argument 2 (not handle yet)",
 			funcToConvert: func(a map[string][]int) int {
+				return len(a)
+			},
+			codeSnippet: `x = boo({"a": [1, 2, 3]})`,
+			wantErr:     true,
+		},
+		{
+			name: "Call with nested map argument 3 (not handle yet)",
+			funcToConvert: func(a map[string][]int) int {
+				return len(a)
+			},
+			valToPass:   starlark.NewList([]starlark.Value{starlark.MakeInt(1), starlark.MakeInt(2), starlark.MakeInt(3)}),
+			codeSnippet: `x = boo({"a": val})`,
+			wantErr:     true,
+		},
+		{
+			name: "Call with nested map argument with goslice",
+			funcToConvert: func(a map[string][]int) int {
+				return len(a)
+			},
+			valToPass:   []int{1, 2, 3},
+			codeSnippet: `x = boo({"a": val})`,
+		},
+		{
+			name: "Call with mistyped map argument",
+			funcToConvert: func(a map[string]string) int {
 				return len(a)
 			},
 			codeSnippet: `x = boo({"a": [1, 2, 3]})`,
@@ -466,6 +524,21 @@ func TestMakeStarFnArgumentType(t *testing.T) {
 			codeSnippet: `x = boo([1, 2, 3, 4, 5])`,
 			wantErr:     true,
 		},
+		{
+			name: "Call with various arguments",
+			funcToConvert: func(s string, i int64, b bool, f float64, ss []string, m map[string]int) (int, string, error) {
+				if len(ss) != 2 || ss[0] != "slice" || ss[1] != "test" {
+					return 0, "", errors.New("incorrect slice input")
+				}
+
+				if len(m) != 1 || m["key"] != 10 {
+					return 0, "", errors.New("incorrect map input")
+				}
+
+				return 5, "hi!", nil
+			},
+			codeSnippet: `x = boo("a", 1, True, 0.1, ["slice", "test"], {"key": 10})`,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -492,11 +565,22 @@ func TestMakeStarFnArgumentType(t *testing.T) {
 			globals := starlark.StringDict{
 				"boo": starFn,
 			}
+
+			// For additional values
+			if tc.valToPass != nil {
+				sv, err := convert.ToValue(tc.valToPass)
+				if err != nil {
+					t.Errorf("Unexpected error for conversion: %v", err)
+					return
+				}
+				globals["val"] = sv
+			}
+
 			_, err := starlark.ExecFile(thread, "script.star", script, globals)
 			if tc.wantErr && err == nil {
 				t.Errorf("Expected error, but got none")
 			} else if !tc.wantErr && err != nil {
-				t.Errorf("Unexpected error: %v", err)
+				t.Errorf("Unexpected error for runtime: %v", err)
 			}
 		})
 	}
