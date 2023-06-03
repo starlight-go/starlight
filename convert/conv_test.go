@@ -114,8 +114,10 @@ func TestMakeNamedList(t *testing.T) {
 }
 
 type contact struct {
-	Name string
-	age  int
+	Name        string
+	age         int
+	PhoneNumber string `starlark:"phone"`
+	Secret      int    `starlark:"-"`
 }
 
 func (c contact) Foo()  {}
@@ -131,7 +133,7 @@ func TestStructAttrNames(t *testing.T) {
 	c := &contact{}
 	s := NewStruct(c)
 	names := s.AttrNames()
-	expected := []string{"Name", "Foo", "Bar"}
+	expected := []string{"Name", "Foo", "phone", "Bar"}
 	for _, s := range names {
 		if !contains(expected, s) {
 			t.Errorf("output contains extra value %q", s)
