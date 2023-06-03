@@ -46,18 +46,21 @@ type GoStruct struct {
 
 // Attr returns a starlark value that wraps the method or field with the given name.
 func (g *GoStruct) Attr(name string) (starlark.Value, error) {
+	// check for its methods and its pointer's methods
 	method := g.v.MethodByName(name)
-	if method.Kind() != reflect.Invalid {
+	if method.Kind() != reflect.Invalid && method.CanInterface() {
 		return makeStarFn(name, method), nil
 	}
 	v := g.v
 	if g.v.Kind() == reflect.Ptr {
 		v = v.Elem()
 		method = g.v.MethodByName(name)
-		if method.Kind() != reflect.Invalid {
+		if method.Kind() != reflect.Invalid && method.CanInterface() {
 			return makeStarFn(name, method), nil
 		}
 	}
+
+	// check for properties
 	field := v.FieldByName(name)
 	if field.Kind() != reflect.Invalid {
 		return toValue(field)
