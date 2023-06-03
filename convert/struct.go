@@ -65,13 +65,9 @@ func (g *GoStruct) Attr(name string) (starlark.Value, error) {
 		field reflect.Value
 		found bool
 	)
-	// get the defined tag name
-	tagName := g.tag
-	if tagName == "" {
-		tagName = DefaultPropertyTag
-	}
 
 	// check each field
+	tagName := g.tagName()
 	t := v.Type()
 	for i := 0; i < v.NumField(); i++ {
 		tag, ok := extractTagOrFieldName(t.Field(i), tagName)
@@ -110,10 +106,7 @@ func (g *GoStruct) AttrNames() []string {
 	names := make([]string, 0, count)
 
 	// get the defined tag name
-	tagName := g.tag
-	if tagName == "" {
-		tagName = DefaultPropertyTag
-	}
+	tagName := g.tagName()
 	saveFieldName := func(f reflect.StructField) {
 		tag, ok := extractTagOrFieldName(f, tagName)
 		if ok {
@@ -163,13 +156,9 @@ func (g *GoStruct) SetField(name string, val starlark.Value) error {
 		field reflect.Value
 		found bool
 	)
-	// get the defined tag name
-	tagName := g.tag
-	if tagName == "" {
-		tagName = DefaultPropertyTag
-	}
 
 	// check each field to find the field
+	tagName := g.tagName()
 	t := v.Type()
 	for i := 0; i < v.NumField(); i++ {
 		tag, ok := extractTagOrFieldName(t.Field(i), tagName)
@@ -236,6 +225,13 @@ func (g *GoStruct) Truth() starlark.Bool {
 // contains a non-hashable value.
 func (g *GoStruct) Hash() (uint32, error) {
 	return 0, errors.New("starlight_struct is not hashable")
+}
+
+func (g *GoStruct) tagName() string {
+	if g.tag == "" {
+		return DefaultPropertyTag
+	}
+	return g.tag
 }
 
 func extractTagOrFieldName(f reflect.StructField, tagName string) (name string, found bool) {
