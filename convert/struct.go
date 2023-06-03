@@ -171,7 +171,17 @@ func (g *GoStruct) AttrNames() []string {
 			saveFieldName(v.Type().Field(i))
 		}
 	}
-	return names
+
+	// deduplicate names
+	nn := make([]string, 0, len(names))
+	ns := make(map[string]struct{}, len(names))
+	for _, n := range names {
+		if _, ok := ns[n]; !ok {
+			nn = append(nn, n)
+			ns[n] = struct{}{}
+		}
+	}
+	return nn
 }
 
 // SetField sets the struct field with the given name with the given value.
