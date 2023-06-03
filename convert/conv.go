@@ -561,8 +561,16 @@ func convertNumericTypes(value interface{}, targetType reflect.Type) interface{}
 	return value
 }
 
-// tryConv tries to convert v to t if v is not assignable to t.
+// tryConv tries to convert starlark.Value v to Go t if v is not assignable to t.
 func tryConv(v starlark.Value, t reflect.Type) (reflect.Value, error) {
+	if v == starlark.None {
+		switch t.Kind() {
+		case reflect.Ptr, reflect.Slice, reflect.Map, reflect.Interface, reflect.Func:
+			return reflect.Zero(t), nil
+		default:
+			return reflect.Value{}, fmt.Errorf("value of type None cannot be converted to non-nullable type %s", t)
+		}
+	}
 	out := reflect.ValueOf(FromValue(v))
 	if !out.Type().AssignableTo(t) {
 		if out.Type().ConvertibleTo(t) {

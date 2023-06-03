@@ -5,9 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/1set/starlight/convert"
-
 	"github.com/1set/starlight"
+	"github.com/1set/starlight/convert"
 	"go.starlark.net/starlark"
 )
 
@@ -44,6 +43,18 @@ x6.pop("c")
 `)
 	_, err = starlight.Eval(code, globals, nil)
 	expectErr(t, err, "pop: missing key")
+
+	code = []byte(`x6.pop()`)
+	_, err = starlight.Eval(code, globals, nil)
+	expectErr(t, err, "pop: got 0 arguments, want 1 or 2")
+
+	code = []byte(`x6.pop("a", "b", "c")`)
+	_, err = starlight.Eval(code, globals, nil)
+	expectErr(t, err, "pop: got 3 arguments, want 1 or 2")
+
+	code = []byte(`x6.pop(None)`)
+	_, err = starlight.Eval(code, globals, nil)
+	expectErr(t, err, "delete: value of type None cannot be converted to non-nullable type string")
 }
 
 func TestMapPopItem(t *testing.T) {
@@ -142,10 +153,12 @@ func toMap(m map[interface{}]interface{}) (map[string]int, error) {
 
 func TestMapIndex(t *testing.T) {
 	x9 := map[string]int{}
+	y9 := map[string][]int{}
 	globals := map[string]interface{}{
 		"assert": &assert{t: t},
 		"x9":     x9,
 		"toMap":  toMap,
+		"y9":     y9,
 	}
 
 	code := []byte(`
@@ -153,6 +166,10 @@ a = x9["a"]
 `)
 	_, err := starlight.Eval(code, globals, nil)
 	expectErr(t, err, `key "a" not in starlight_map<map[string]int>`)
+
+	code = []byte(`x9["a"] = "aloha"`)
+	_, err = starlight.Eval(code, globals, nil)
+	expectErr(t, err, `setkey value: value of type string cannot be converted to type int`)
 
 	code = []byte(`
 x9["a"] = 1
@@ -177,7 +194,15 @@ setIndex(x9, [], 2)
 `)
 
 	_, err = starlight.Eval(code, globals, nil)
-	expectErr(t, err, `reflect.Value.SetMapIndex: value of type []interface {} is not assignable to type string`)
+	expectErr(t, err, `setkey key: value of type []interface {} cannot be converted to type string`)
+
+	code = []byte(`x9[True] = 1314`)
+	_, err = starlight.Eval(code, globals, nil)
+	expectErr(t, err, `setkey key: value of type bool cannot be converted to type string`)
+
+	code = []byte(`x9["a"] = "aloha"`)
+	_, err = starlight.Eval(code, globals, nil)
+	expectErr(t, err, `setkey value: value of type string cannot be converted to type int`)
 
 	v, err := convert.ToValue(x9)
 	if err != nil {
@@ -191,6 +216,23 @@ x9["a"] = 3
 
 	_, err = starlight.Eval(code, map[string]interface{}{"x9": v}, nil)
 	expectErr(t, err, `cannot insert into frozen map`)
+
+	code = []byte(`y9["a"] = [1, 2, 3]`)
+	_, err = starlight.Eval(code, globals, nil)
+	expectErr(t, err, `setkey value: value of type []interface {} cannot be converted to type []int`)
+
+	code = []byte(`y9["b"] = None`)
+	_, err = starlight.Eval(code, globals, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m, ok := globals["y9"].(map[string][]int); !ok {
+		t.Fatalf("expected map[string][]int, got %T", globals["y9"])
+	} else if len(m) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(m))
+	} else if m["b"] != nil {
+		t.Fatalf("expected nil value, got %v", m["b"])
+	}
 }
 
 func expectErr(t *testing.T, err error, expected string) {
@@ -219,12 +261,18 @@ assert.Eq(x10.get("b", 2), 2)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	code = []byte(`x10[True]`)
+	_, err = starlight.Eval(code, map[string]interface{}{"x10": x10}, nil)
+	expectErr(t, err, `get: value of type bool cannot be converted to type string`)
+
+	code = []byte(`x10[None]`)
+	_, err = starlight.Eval(code, map[string]interface{}{"x10": x10}, nil)
+	expectErr(t, err, `get: value of type None cannot be converted to non-nullable type string`)
 }
 
 func TestMapClear(t *testing.T) {
-
 	x11 := map[string]int{"a": 1}
-
 	var isIn *bool
 	record := func(b bool) {
 		isIn = &b
@@ -450,6 +498,30 @@ f()
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestMapUnsupportedType(t *testing.T) {
+	globals := map[string]interface{}{
+		"assert": &assert{t: t},
+		"m1":     map[chan int]int{make(chan int): 2},
+		"m2":     map[int]chan string{2: make(chan string)},
+	}
+
+	code := []byte(`m1[1] = 1`)
+	_, err := starlight.Eval(code, globals, nil)
+	expectErr(t, err, "setkey key: value of type int64 cannot be converted to type chan int")
+
+	code = []byte(`val = m1[2]`)
+	_, err = starlight.Eval(code, globals, nil)
+	expectErr(t, err, "get: value of type int64 cannot be converted to type chan int")
+
+	code = []byte(`m2[1] = "test"`)
+	_, err = starlight.Eval(code, globals, nil)
+	expectErr(t, err, "setkey value: value of type string cannot be converted to type chan string")
+
+	code = []byte(`val = m2[2]`)
+	_, err = starlight.Eval(code, globals, nil)
+	expectErr(t, err, "type chan string is not a supported starlark type")
 }
 
 // intMap converts from a starlark-created map to a map[int]int

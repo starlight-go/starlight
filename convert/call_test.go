@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/big"
 	"reflect"
 	"strings"
 	"testing"
@@ -131,6 +132,16 @@ def test():
 		fail('go_value is not 123')
 test()
 `,
+		},
+		{
+			name:        "float",
+			goValue:     123.456,
+			codeSnippet: `assert.Equal(123.456, go_value)`,
+		},
+		{
+			name:        "bigint",
+			goValue:     big.NewInt(1234567890),
+			codeSnippet: `assert.Equal(1234567890, go_value.Int64())`,
 		},
 		{
 			name:    "string",
@@ -734,7 +745,9 @@ func TestCustomStructInStarlark(t *testing.T) {
 			MessageWriter: b,
 			ReadMessage:   b.String,
 			NumberChan:    make(chan int, 10),
+			StarDict:      starlark.NewDict(10),
 		}
+		_ = p.StarDict.SetKey(starlark.String("foo"), starlark.String("bar"))
 		return p
 	}
 	noCheck := func(_ *personStruct, _ map[string]interface{}) error {
@@ -901,9 +914,9 @@ func TestCustomStructInStarlark(t *testing.T) {
 			},
 		},
 		{
-			name:        "list fields",
+			name:        "list prop fields",
 			codeSnippet: `fields = dir(pn); out = pn`,
-			checkEqual:  getInterfaceStringSliceCompare("fields", []string{"Age", "Aging", "Anything", "Customer", "CustomerPtr", "GetSecretKey", "Labels", "MessageWriter", "Name", "NestedValues", "NilCustomer", "NilPerson", "NilString", "Nothing", "NumberChan", "Parent", "Profile", "ReadMessage", "SetCustomer", "SetSecretKey", "String", "buffer", "secretKey"}),
+			checkEqual:  getInterfaceStringSliceCompare("fields", []string{"Age", "Aging", "Anything", "Customer", "CustomerPtr", "GetSecretKey", "Labels", "MessageWriter", "Name", "NestedValues", "NilCustomer", "NilPerson", "NilString", "Nothing", "NumberChan", "Parent", "Profile", "ReadMessage", "SetCustomer", "SetSecretKey", "StarDict", "String", "buffer", "secretKey"}),
 		},
 		{
 			name:        "read slice of string",
@@ -1166,6 +1179,41 @@ val = pn.ReadMessage()
 			checkEqual: getStringCompare("val", "Mahalo!"),
 		},
 		{
+			name:        "use original starlark dict",
+			codeSnippet: `out = pn; pn.StarDict["Hello"] = [42, 1000]; val = pn.StarDict["Hello"]`,
+			checkEqual: func(p *personStruct, m map[string]interface{}) error {
+				// check exported value
+				if v, ok := m["val"]; !ok {
+					return fmt.Errorf(`missing "val" in globals`)
+				} else if p, ok := v.([]interface{}); !ok {
+					return fmt.Errorf("mistype for val, want: []interface{}, got: %T", p)
+				} else {
+					vals := []int64{42, 1000}
+					if len(vals) != len(p) {
+						return fmt.Errorf("diff length of slice: want: %d, got: %d", len(vals), len(p))
+					}
+					for i := range vals {
+						e := vals[i]
+						a := p[i].(int64)
+						if e != a {
+							return fmt.Errorf("diff value of element[%d]: want: %d, got: %d", i, e, a)
+						}
+					}
+				}
+
+				// check original value
+				name := "Hello"
+				if v, found, err := p.StarDict.Get(starlark.String(name)); err != nil {
+					return fmt.Errorf("fail to get value %q from dict: %v", name, err)
+				} else if !found {
+					return fmt.Errorf("target value %q is missing from dict", name)
+				} else if v.Type() != "list" {
+					return fmt.Errorf("got wrong value type: want: list, got: %s", v.Type())
+				}
+				return nil
+			},
+		},
+		{
 			name: "Test!!!!",
 			codeSnippet: `
 print(pn)
@@ -1243,6 +1291,7 @@ type personStruct struct {
 	NilCustomer   *customStruct                `starlark:"nil_custom"`
 	NilPerson     *personStruct                `starlark:"nil_person"`
 	buffer        bytes.Buffer                 `starlark:"-"`
+	StarDict      *starlark.Dict               `starlark:"dict"`
 }
 
 func (p *personStruct) String() string {

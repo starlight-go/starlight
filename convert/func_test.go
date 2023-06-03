@@ -348,10 +348,38 @@ func TestMakeStarFnArgumentType(t *testing.T) {
 			shouldPanic:   true,
 		},
 		{
-			name:          "Call with wrong argument count",
+			name:          "Call with less argument count",
 			funcToConvert: func(a int, b int) {},
 			codeSnippet:   `x = boo(12)`,
 			wantErr:       true,
+		},
+		{
+			name:          "Call with more argument count",
+			funcToConvert: func(a int, b int) {},
+			codeSnippet:   `x = boo(12, 34, 56)`,
+			wantErr:       true,
+		},
+		{
+			name: "Call with variadic argument",
+			funcToConvert: func(a int, b ...int) int {
+				return len(b)
+			},
+			codeSnippet: `x = boo(12)`,
+		},
+		{
+			name: "Call with more variadic argument",
+			funcToConvert: func(a int, b ...int) int {
+				return len(b)
+			},
+			codeSnippet: `x = boo(12, 34, 56)`,
+		},
+		{
+			name: "Call with wrong variadic argument type",
+			funcToConvert: func(a int, b ...int) int {
+				return len(b)
+			},
+			codeSnippet: `x = boo(12, "hello")`,
+			wantErr:     true,
 		},
 		{
 			name:          "Call with wrong argument type",

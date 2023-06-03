@@ -59,8 +59,12 @@ assert.Eq(abc[2], "c")
 	tests := []fail{
 		{"abc[3]", "starlight_slice<[]string> index 3 out of range [-3:2]"},
 		{"abc[-4]", "starlight_slice<[]string> index -4 out of range [-3:2]"},
+		{"abc[0.0]", "starlight_slice<[]string> index: got float, want int"},
+		{`abc["a"]`, "starlight_slice<[]string> index: got string, want int"},
+		{"abc[0, 1]", "starlight_slice<[]string> index: got tuple, want int"},
+		{`abc[0] = True`, "index: value of type bool cannot be converted to type string"},
+		{`abc[None]`, "starlight_slice<[]string> index: got NoneType, want int"},
 	}
-
 	expectFails(t, tests, globals)
 }
 
@@ -149,11 +153,16 @@ assert.Eq(x3, intSlice([1, 2, 3, 4, 5, 6]))
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	code = []byte(`x3.append("test")`)
+	_, err = starlight.Eval(code, globals, nil)
+	if err == nil {
+		t.Fatal("expected error")
+	}
 }
 
 func TestSliceExtend(t *testing.T) {
 	x3 := []int{1, 2, 3}
-
 	globals := map[string]interface{}{
 		"assert":   &assert{t: t},
 		"x3":       x3,
@@ -168,6 +177,14 @@ assert.Eq(x3, intSlice([1, 2, 3, 4, 5, 6]))
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	code = []byte(`x3.extend("test")`)
+	_, err = starlight.Eval(code, globals, nil)
+	expectErr(t, err, "argument is not iterable: test (starlark.String)")
+
+	code = []byte(`x3.extend(["a", "b", "c"])`)
+	_, err = starlight.Eval(code, globals, nil)
+	expectErr(t, err, "extend: value of type string cannot be converted to type int")
 }
 
 func TestSliceIndex(t *testing.T) {
@@ -203,12 +220,13 @@ assert.Eq(bananas.index('s', -1000, 7), 6) # bananaS
 		{`bananas.index('d')`, `index: value d not in list`},
 		{`bananas.index('s', -1000, 6)`, `index: value s not in list`},
 		{`bananas.index('d', -1000, 1000)`, `index: value d not in list`},
+		{`bananas.index([], 0, 0)`, `index: value of type []interface {} cannot be converted to type string`},
+		{`bananas.index(None, 0, 0)`, `index: value of type None cannot be converted to non-nullable type string`},
 	}
 	expectFails(t, tests, globals)
 }
 
 func TestSliceInsert(t *testing.T) {
-
 	globals := map[string]interface{}{
 		"assert":   &assert{t: t},
 		"intSlice": intSlice,
@@ -232,10 +250,13 @@ assert.Eq(insert_at( 4), intSlice([0, 1, 2, 42]))
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	code = []byte(`intSlice([0,1,2]).insert(0, "test")`)
+	_, err = starlight.Eval(code, globals, nil)
+	expectErr(t, err, `insert: value of type string cannot be converted to type int`)
 }
 
 func TestSliceRemove(t *testing.T) {
-
 	globals := map[string]interface{}{
 		"assert":   &assert{t: t},
 		"intSlice": intSlice,
@@ -258,6 +279,10 @@ assert.Eq(remove(4), intSlice([3, 1, 1]))
 	code = []byte(`intSlice([3, 1, 4, 1]).remove(42)`)
 	_, err = starlight.Eval(code, globals, nil)
 	expectErr(t, err, "remove: element 42 not found")
+
+	code = []byte(`intSlice([3, 1, 4, 1]).remove(True)`)
+	_, err = starlight.Eval(code, globals, nil)
+	expectErr(t, err, "remove: value of type bool cannot be converted to type int")
 }
 
 func TestSliceIteratorInvalidation(t *testing.T) {
@@ -337,6 +362,26 @@ assert.Eq(x4, intSlice([3,4]))
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestSliceUnsupportedType(t *testing.T) {
+	globals := map[string]interface{}{
+		"assert": &assert{t: t},
+		"s1":     []chan int{},
+		"s2":     []chan int{make(chan int), make(chan int, 1), make(chan int, 2)},
+	}
+
+	code := []byte(`s1.append(1)`)
+	_, err := starlight.Eval(code, globals, nil)
+	expectErr(t, err, "append: value of type int64 cannot be converted to type chan int")
+
+	code = []byte(`val = s2[]`)
+	_, err = starlight.Eval(code, globals, nil)
+	expectErr(t, err, "eval.sky:1:11: got ']', want primary expression")
+
+	code = []byte(`val = s2["foo"]`)
+	_, err = starlight.Eval(code, globals, nil)
+	expectErr(t, err, "starlight_slice<[]chan int> index: got string, want int")
 }
 
 // func TestSlicePlus(t *testing.T) {

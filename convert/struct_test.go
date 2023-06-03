@@ -63,6 +63,14 @@ assert.Eq(True, bytesEqual(readAll(m.Body), m.Bytes))
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	code = []byte(`m.Bool = 200`)
+	_, err = starlight.Eval(code, globals, nil)
+	expectErr(t, err, "value of type int64 cannot be converted to type bool")
+
+	code = []byte(`m.Int = None`)
+	_, err = starlight.Eval(code, globals, nil)
+	expectErr(t, err, "value of type None cannot be converted to non-nullable type int")
 }
 
 func TestCantCallUnexported(t *testing.T) {
