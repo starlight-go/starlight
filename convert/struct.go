@@ -44,24 +44,26 @@ type GoStruct struct {
 	tag string
 }
 
-// Attr returns a starlark value that wraps the method or field with the given
-// name.
+// Attr returns a starlark value that wraps the method or field with the given name.
 func (g *GoStruct) Attr(name string) (starlark.Value, error) {
 	method := g.v.MethodByName(name)
-	if method.Kind() != reflect.Invalid {
+	if method.Kind() != reflect.Invalid && method.CanInterface() {
 		return makeStarFn(name, method), nil
 	}
 	v := g.v
 	if g.v.Kind() == reflect.Ptr {
 		v = v.Elem()
 		method = g.v.MethodByName(name)
-		if method.Kind() != reflect.Invalid {
+		if method.Kind() != reflect.Invalid && method.CanInterface() {
 			return makeStarFn(name, method), nil
 		}
 	}
 	field := v.FieldByName(name)
 	if field.Kind() != reflect.Invalid {
-		return toValue(field)
+		tag := v.Type().FieldByName(name).Tag.Get(g.tag)
+		if tag != "-" {
+			return toValue(field)
+		}
 	}
 	return nil, nil
 }
@@ -77,19 +79,27 @@ func (g *GoStruct) AttrNames() []string {
 	}
 	names := make([]string, 0, count)
 	for i := 0; i < g.v.NumMethod(); i++ {
-		names = append(names, g.v.Type().Method(i).Name)
+		method := g.v.Type().Method(i)
+		if method.PkgPath == "" {
+			names = append(names, method.Name)
+		}
 	}
 	if g.v.Kind() == reflect.Ptr {
 		t := g.v.Elem().Type()
 		for i := 0; i < t.NumField(); i++ {
-			names = append(names, t.Field(i).Name)
-		}
-		for i := 0; i < t.NumMethod(); i++ {
-			names = append(names, t.Method(i).Name)
+			field := t.Field(i)
+			tag := field.Tag.Get(g.tag)
+			if tag != "-" && field.PkgPath == "" {
+				names = append(names, tag)
+			}
 		}
 	} else {
 		for i := 0; i < g.v.NumField(); i++ {
-			names = append(names, g.v.Type().Field(i).Name)
+			field := g.v.Type().Field(i)
+			tag := field.Tag.Get(g.tag)
+			if tag != "-" && field.PkgPath == "" {
+				names = append(names, tag)
+			}
 		}
 	}
 	return names
@@ -101,14 +111,20 @@ func (g *GoStruct) SetField(name string, val starlark.Value) error {
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
-	field := v.FieldByName(name)
-	if field.CanSet() {
-		val, err := tryConv(val, field.Type())
-		if err != nil {
-			return err
+	field, ok := v.Type().FieldByName(name)
+	if ok {
+		tag := field.Tag.Get(g.tag)
+		if tag != "-" {
+			field := v.FieldByName(name)
+			if field.CanSet() {
+				val, err := tryConv(val, field.Type())
+				if err != nil {
+					return err
+				}
+				field.Set(val)
+				return nil
+			}
 		}
-		field.Set(val)
-		return nil
 	}
 	return fmt.Errorf("%s is not a settable field", name)
 }
