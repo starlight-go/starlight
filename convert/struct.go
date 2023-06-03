@@ -157,7 +157,40 @@ func (g *GoStruct) SetField(name string, val starlark.Value) error {
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
-	field := v.FieldByName(name)
+
+	// check for properties
+	var (
+		field reflect.Value
+		found bool
+	)
+	// get the defined tag name
+	tagName := g.tag
+	if tagName == "" {
+		tagName = DefaultPropertyTag
+	}
+
+	// check each field to find the field
+	t := v.Type()
+	for i := 0; i < v.NumField(); i++ {
+		tag, ok := extractTagOrFieldName(t.Field(i), tagName)
+		if !ok {
+			continue
+		}
+
+		// check if the tag name matches the given name
+		if tag == name {
+			field = v.Field(i)
+			found = true
+			break
+		}
+	}
+
+	// if not found
+	if !found {
+		return fmt.Errorf("field %s is not found", name)
+	}
+
+	// try to set the field
 	if field.CanSet() {
 		val, err := tryConv(val, field.Type())
 		if err != nil {
