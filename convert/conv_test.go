@@ -131,7 +131,7 @@ func TestStructAttrNames(t *testing.T) {
 	c := &contact{}
 	s := NewStruct(c)
 	names := s.AttrNames()
-	expected := []string{"Name", "age", "Foo", "Bar"}
+	expected := []string{"Name", "Foo", "Bar"}
 	for _, s := range names {
 		if !contains(expected, s) {
 			t.Errorf("output contains extra value %q", s)

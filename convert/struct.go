@@ -125,20 +125,50 @@ func (g *GoStruct) AttrNames() []string {
 	}
 	names := make([]string, 0, count)
 
+	// get the defined tag name
+	tagName := g.tag
+	if tagName == "" {
+		tagName = DefaultPropertyTag
+	}
+	saveFieldName := func(f reflect.StructField) {
+		if f.PkgPath != "" {
+			// Skip unexported fields
+			return
+		}
+
+		var tag string
+		if tagName != "" {
+			// get the tag value by name
+			tag = f.Tag.Get(tagName)
+			if tag == "-" {
+				// Skip fields with tag "-"
+				return
+			}
+		}
+		if tag == "" {
+			// If both custom and default tag name are empty, just use the field name
+			// If no related tag is defined or as empty, use the field name
+			tag = f.Name
+		}
+
+		names = append(names, tag)
+	}
+
+	// check each methods and fields
 	for i := 0; i < v.NumMethod(); i++ {
 		names = append(names, v.Type().Method(i).Name)
 	}
 	if v.Kind() == reflect.Ptr {
 		t := v.Elem().Type()
 		for i := 0; i < t.NumField(); i++ {
-			names = append(names, t.Field(i).Name)
+			saveFieldName(t.Field(i))
 		}
 		for i := 0; i < t.NumMethod(); i++ {
 			names = append(names, t.Method(i).Name)
 		}
 	} else {
 		for i := 0; i < v.NumField(); i++ {
-			names = append(names, v.Type().Field(i).Name)
+			saveFieldName(v.Type().Field(i))
 		}
 	}
 	return names
