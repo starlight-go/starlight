@@ -237,3 +237,29 @@ func (g *GoStruct) Truth() starlark.Bool {
 func (g *GoStruct) Hash() (uint32, error) {
 	return 0, errors.New("starlight_struct is not hashable")
 }
+
+func extractTagOrFieldName(f reflect.StructField, tagName string) (name string, found bool) {
+	if f.PkgPath != "" {
+		// Skip unexported fields
+		return
+	}
+
+	var tag string
+	if tagName != "" {
+		// get the tag value by name
+		tag = f.Tag.Get(tagName)
+		if tag == "-" {
+			// Skip fields with tag "-"
+			return
+		}
+	}
+	if tag == "" {
+		// If both custom and default tag name are empty, just use the field name
+		// If no related tag is defined or as empty, use the field name
+		name = f.Name
+	} else {
+		name = tag
+	}
+	found = true
+	return
+}
