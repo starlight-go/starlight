@@ -61,10 +61,54 @@ func (g *GoStruct) Attr(name string) (starlark.Value, error) {
 	}
 
 	// check for properties
-	field := v.FieldByName(name)
-	if field.Kind() != reflect.Invalid {
+	var (
+		field reflect.Value
+		found bool
+	)
+	// get the defined tag name
+	tagName := g.tag
+	if tagName == "" {
+		tagName = DefaultPropertyTag
+	}
+
+	// check each field
+	t := v.Type()
+	for i := 0; i < v.NumField(); i++ {
+		f := t.Field(i)
+		if f.PkgPath != "" {
+			// Skip unexported fields
+			continue
+		}
+
+		var tag string
+		if tagName != "" {
+			// get the tag value by name
+			tag = f.Tag.Get(tagName)
+			if tag == "-" {
+				// Skip fields with tag "-"
+				continue
+			}
+		}
+		if tag == "" {
+			// If both custom and default tag name are empty, just use the field name
+			// If no related tag is defined or as empty, use the field name
+			tag = f.Name
+		}
+
+		// check if the tag name matches the given name
+		if tag == name {
+			field = v.Field(i)
+			found = true
+			break
+		}
+	}
+
+	// return the field if found
+	if found && field.Kind() != reflect.Invalid {
 		return toValue(field)
 	}
+
+	// for not found
 	return nil, nil
 }
 
