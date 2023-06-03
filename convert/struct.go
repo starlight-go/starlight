@@ -8,12 +8,31 @@ import (
 	"go.starlark.net/starlark"
 )
 
+var (
+	// DefaultPropertyTag is the default struct tag to use when converting
+	DefaultPropertyTag = "starlark"
+)
+
 // NewStruct makes a new starlark-compatible Struct from the given struct or
-// pointer to struct.  This will panic if you pass it anything else.
+// pointer to struct. This will panic if you pass it anything else.
 func NewStruct(strct interface{}) *GoStruct {
 	val := reflect.ValueOf(strct)
 	if val.Kind() == reflect.Struct || (val.Kind() == reflect.Ptr && val.Elem().Kind() == reflect.Struct) {
-		return &GoStruct{v: val}
+		return &GoStruct{v: val, tag: DefaultPropertyTag}
+	}
+	panic(fmt.Errorf("value must be a struct or pointer to a struct, but was %T", val.Interface()))
+}
+
+// NewStructWithTag makes a new starlark-compatible Struct from the given struct
+// or pointer to struct, using the given struct tag to determine which fields to
+// expose. This will panic if you pass it anything else.
+func NewStructWithTag(strct interface{}, tag string) *GoStruct {
+	val := reflect.ValueOf(strct)
+	if val.Kind() == reflect.Struct || (val.Kind() == reflect.Ptr && val.Elem().Kind() == reflect.Struct) {
+		if tag == "" {
+			tag = DefaultPropertyTag
+		}
+		return &GoStruct{v: val, tag: tag}
 	}
 	panic(fmt.Errorf("value must be a struct or pointer to a struct, but was %T", val.Interface()))
 }
@@ -21,7 +40,8 @@ func NewStruct(strct interface{}) *GoStruct {
 // GoStruct is a wrapper around a Go struct to let it be manipulated by starlark
 // scripts.
 type GoStruct struct {
-	v reflect.Value
+	v   reflect.Value
+	tag string
 }
 
 // Attr returns a starlark value that wraps the method or field with the given
