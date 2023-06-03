@@ -18,7 +18,7 @@ var (
 func NewStruct(strct interface{}) *GoStruct {
 	val := reflect.ValueOf(strct)
 	if val.Kind() == reflect.Struct || (val.Kind() == reflect.Ptr && val.Elem().Kind() == reflect.Struct) {
-		return &GoStruct{v: val, tag: DefaultPropertyTag}
+		return &GoStruct{v: val}
 	}
 	panic(fmt.Errorf("value must be a struct or pointer to a struct, but was %T", val.Interface()))
 }
@@ -46,30 +46,21 @@ type GoStruct struct {
 
 // Attr returns a starlark value that wraps the method or field with the given name.
 func (g *GoStruct) Attr(name string) (starlark.Value, error) {
-	v := g.v
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
-	}
-
-	// check for method first
-	method := v.MethodByName(name)
-	if method.Kind() != reflect.Invalid && method.CanInterface() {
+	method := g.v.MethodByName(name)
+	if method.Kind() != reflect.Invalid {
 		return makeStarFn(name, method), nil
 	}
-
-	// check for field/property
-	field, ok := v.Type().FieldByName(name)
-	if ok {
-		if field.PkgPath != "" {
-			return nil, nil // Skip unexported field
+	v := g.v
+	if g.v.Kind() == reflect.Ptr {
+		v = v.Elem()
+		method = g.v.MethodByName(name)
+		if method.Kind() != reflect.Invalid {
+			return makeStarFn(name, method), nil
 		}
-		tag := field.Tag.Get(g.tag)
-		if tag != "-" {
-			field := v.FieldByName(name)
-			if field.Kind() != reflect.Invalid {
-				return toValue(field)
-			}
-		}
+	}
+	field := v.FieldByName(name)
+	if field.Kind() != reflect.Invalid {
+		return toValue(field)
 	}
 	return nil, nil
 }
@@ -85,27 +76,19 @@ func (g *GoStruct) AttrNames() []string {
 	}
 	names := make([]string, 0, count)
 	for i := 0; i < g.v.NumMethod(); i++ {
-		method := g.v.Type().Method(i)
-		if method.PkgPath == "" {
-			names = append(names, method.Name)
-		}
+		names = append(names, g.v.Type().Method(i).Name)
 	}
 	if g.v.Kind() == reflect.Ptr {
 		t := g.v.Elem().Type()
 		for i := 0; i < t.NumField(); i++ {
-			field := t.Field(i)
-			tag := field.Tag.Get(g.tag)
-			if tag != "-" && field.PkgPath == "" {
-				names = append(names, tag)
-			}
+			names = append(names, t.Field(i).Name)
+		}
+		for i := 0; i < t.NumMethod(); i++ {
+			names = append(names, t.Method(i).Name)
 		}
 	} else {
 		for i := 0; i < g.v.NumField(); i++ {
-			field := g.v.Type().Field(i)
-			tag := field.Tag.Get(g.tag)
-			if tag != "-" && field.PkgPath == "" {
-				names = append(names, tag)
-			}
+			names = append(names, g.v.Type().Field(i).Name)
 		}
 	}
 	return names
@@ -117,23 +100,14 @@ func (g *GoStruct) SetField(name string, val starlark.Value) error {
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
-	field, ok := v.Type().FieldByName(name)
-	if ok {
-		if field.PkgPath != "" {
-			return fmt.Errorf("%s is an unexported field", name) // Skip unexported field
+	field := v.FieldByName(name)
+	if field.CanSet() {
+		val, err := tryConv(val, field.Type())
+		if err != nil {
+			return err
 		}
-		tag := field.Tag.Get(g.tag)
-		if tag != "-" {
-			field := v.FieldByName(name)
-			if field.CanSet() {
-				val, err := tryConv(val, field.Type())
-				if err != nil {
-					return err
-				}
-				field.Set(val)
-				return nil
-			}
-		}
+		field.Set(val)
+		return nil
 	}
 	return fmt.Errorf("%s is not a settable field", name)
 }
