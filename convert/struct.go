@@ -131,27 +131,10 @@ func (g *GoStruct) AttrNames() []string {
 		tagName = DefaultPropertyTag
 	}
 	saveFieldName := func(f reflect.StructField) {
-		if f.PkgPath != "" {
-			// Skip unexported fields
-			return
+		tag, ok := extractTagOrFieldName(f, tagName)
+		if ok {
+			names = append(names, tag)
 		}
-
-		var tag string
-		if tagName != "" {
-			// get the tag value by name
-			tag = f.Tag.Get(tagName)
-			if tag == "-" {
-				// Skip fields with tag "-"
-				return
-			}
-		}
-		if tag == "" {
-			// If both custom and default tag name are empty, just use the field name
-			// If no related tag is defined or as empty, use the field name
-			tag = f.Name
-		}
-
-		names = append(names, tag)
 	}
 
 	// check each methods and fields
