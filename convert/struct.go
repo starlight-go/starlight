@@ -74,25 +74,9 @@ func (g *GoStruct) Attr(name string) (starlark.Value, error) {
 	// check each field
 	t := v.Type()
 	for i := 0; i < v.NumField(); i++ {
-		f := t.Field(i)
-		if f.PkgPath != "" {
-			// Skip unexported fields
+		tag, ok := extractTagOrFieldName(t.Field(i), tagName)
+		if !ok {
 			continue
-		}
-
-		var tag string
-		if tagName != "" {
-			// get the tag value by name
-			tag = f.Tag.Get(tagName)
-			if tag == "-" {
-				// Skip fields with tag "-"
-				continue
-			}
-		}
-		if tag == "" {
-			// If both custom and default tag name are empty, just use the field name
-			// If no related tag is defined or as empty, use the field name
-			tag = f.Name
 		}
 
 		// check if the tag name matches the given name
