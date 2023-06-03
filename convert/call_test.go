@@ -702,8 +702,6 @@ nested_list = [[1, 2, 3], [4, 5, 6]]
 
 // TestCustomStruct tests that custom struct can be operated in Starlark.
 func TestCustomStructInStarlark(t *testing.T) {
-	t.Skip()
-
 	getNewPerson := func() *personStruct {
 		a := "Aloha!"
 		b := bytes.NewBuffer(nil)
@@ -840,31 +838,31 @@ func TestCustomStructInStarlark(t *testing.T) {
 		},
 		{
 			name:        "access unsupported field",
-			codeSnippet: `foo = pn.NumberChan`,
+			codeSnippet: `foo = pn.number_chan`,
 			checkEqual:  noCheck,
 			wantErrExec: true,
 		},
 		{
 			name:        "access unsupported field 2",
-			codeSnippet: `foo = pn.NilString`,
+			codeSnippet: `foo = pn.nil_string`,
 			checkEqual:  noCheck,
 			wantErrExec: true,
 		},
 		{
 			name:        "assign mismatched type",
-			codeSnippet: `pn.Parent = 88`,
+			codeSnippet: `pn.parent = 88`,
 			checkEqual:  noCheck,
 			wantErrExec: true,
 		},
 		{
 			name:        "assign mismatched type 2",
-			codeSnippet: `pn.Age = "number"`,
+			codeSnippet: `pn.age = "number"`,
 			checkEqual:  noCheck,
 			wantErrExec: true,
 		},
 		{
 			name:        "read nil simple custom field",
-			codeSnippet: `out = pn; val = pn.NilCustomer`,
+			codeSnippet: `out = pn; val = pn.nil_custom`,
 			checkEqual: func(_ *personStruct, m map[string]interface{}) error {
 				if v, ok := m["val"]; !ok {
 					return fmt.Errorf(`expected "val" to be in globals, but not found`)
@@ -878,7 +876,7 @@ func TestCustomStructInStarlark(t *testing.T) {
 		},
 		{
 			name:        "read nil custom field with methods",
-			codeSnippet: `out = pn; val = pn.NilPerson`,
+			codeSnippet: `out = pn; val = pn.nil_person`,
 			checkEqual: func(_ *personStruct, m map[string]interface{}) error {
 				if v, ok := m["val"]; !ok {
 					return fmt.Errorf(`expected "val" to be in globals, but not found`)
@@ -892,12 +890,12 @@ func TestCustomStructInStarlark(t *testing.T) {
 		},
 		{
 			name:        "read public field",
-			codeSnippet: `val = pn.Name ; out = pn`,
+			codeSnippet: `val = pn.name ; out = pn`,
 			checkEqual:  getStringCompare("val", "John Doe"),
 		},
 		{
 			name:        "write public field",
-			codeSnippet: `pn.Name = "Whoever"; out = pn`,
+			codeSnippet: `pn.name = "Whoever"; out = pn`,
 			checkEqual: func(pn *personStruct, _ map[string]interface{}) error {
 				if pn.Name != "Whoever" {
 					return fmt.Errorf(`expected pn.Name to be "Whoever", but got %q`, pn.Name)
@@ -918,39 +916,39 @@ func TestCustomStructInStarlark(t *testing.T) {
 		{
 			name:        "list prop fields",
 			codeSnippet: `fields = dir(pn); out = pn`,
-			checkEqual:  getInterfaceStringSliceCompare("fields", []string{"Age", "Aging", "Anything", "Customer", "CustomerPtr", "GetSecretKey", "Labels", "MessageWriter", "Name", "NestedValues", "NilCustomer", "NilPerson", "NilString", "Nothing", "NumberChan", "Parent", "Profile", "ReadMessage", "SetCustomer", "SetSecretKey", "StarDict", "String", "buffer", "secretKey"}),
+			checkEqual:  getInterfaceStringSliceCompare("fields", []string{"Aging", "GetSecretKey", "Nothing", "SetCustomer", "SetSecretKey", "String", "age", "anything", "customer", "customer_ptr", "dict", "message_writer", "name", "nested_values", "nil_custom", "nil_person", "nil_string", "number_chan", "parent", "profile", "read_message", "tags"}),
 		},
 		{
 			name:        "read slice of string",
-			codeSnippet: `foo = pn.Labels; out = pn`,
+			codeSnippet: `foo = pn.tags; out = pn`,
 			checkEqual:  getStringSliceCompare("foo", []string{"tag1", "tag2", "tag3"}),
 		},
 		{
 			name:        "read element of slice of string",
-			codeSnippet: `foo = pn.Labels[1]; out = pn`,
+			codeSnippet: `foo = pn.tags[1]; out = pn`,
 			checkEqual:  getStringCompare("foo", "tag2"),
 		},
 		{
 			name:        "set slice of string for wrong type", // It fails for []interface{} vs []string
-			codeSnippet: `pn.Labels = ["foo", "bar"]; out = pn`,
+			codeSnippet: `pn.tags = ["foo", "bar"]; out = pn`,
 			checkEqual:  noCheck,
 			wantErrExec: true,
 		},
 		{
 			name:        "set slice of interface",
-			codeSnippet: `pn.Anything = ["foo", "bar"]; out = pn; sl = pn.Anything`,
+			codeSnippet: `pn.anything = ["foo", "bar"]; out = pn; sl = pn.anything`,
 			checkEqual:  getInterfaceStringSliceCompare("sl", []string{"foo", "bar"}),
 		},
 		{
 			name:        "read element of slice of interface",
-			codeSnippet: `foo = pn.Anything[3]; out = pn`,
+			codeSnippet: `foo = pn.anything[3]; out = pn`,
 			checkEqual:  getStringCompare("foo", "3"),
 		},
 		{
 			name:        "change slice field",
-			codeSnippet: `pn.Labels[0] = "bird"; out = pn`,
+			codeSnippet: `pn.tags[0] = "bird"; out = pn`,
 			checkEqual: func(p *personStruct, _ map[string]interface{}) error {
-				fieldName := ".Labels"
+				fieldName := ".tags"
 				want := []string{"bird", "tag2", "tag3"}
 				if len(p.Labels) != len(want) {
 					return fmt.Errorf(`expected %q to have %d elements, but got %d`, fieldName, len(want), len(p.Labels))
@@ -966,18 +964,18 @@ func TestCustomStructInStarlark(t *testing.T) {
 		{
 			name: "append slice field -- workaround", // It's a known issue that append() ops doesn't work on original slice field, since the new slice struct won't be set back.
 			codeSnippet: `
-l = pn.Labels
+l = pn.tags
 l.append("cat")
 l.extend(["dog", "fish"])
 l.pop()
 l[0] = "bird"
 l.insert(2, "whale")
-pn.Labels = l
+pn.tags = l
 
 out = pn
 `,
 			checkEqual: func(p *personStruct, _ map[string]interface{}) error {
-				fieldName := ".Labels"
+				fieldName := ".tags"
 				want := []string{"bird", "tag2", "whale", "tag3", "cat", "dog"}
 				if len(p.Labels) != len(want) {
 					return fmt.Errorf(`expected %q to have %d elements, but got %d`, fieldName, len(want), len(p.Labels))
@@ -992,13 +990,13 @@ out = pn
 		},
 		{
 			name:        "read non-exist map field",
-			codeSnippet: `foo = pn.Profile["name"]; out = pn`,
+			codeSnippet: `foo = pn.profile["name"]; out = pn`,
 			checkEqual:  noCheck,
 			wantErrExec: true,
 		},
 		{
 			name:        "read number map field",
-			codeSnippet: `foo = pn.Profile["phone"]; out = pn`,
+			codeSnippet: `foo = pn.profile["phone"]; out = pn`,
 			checkEqual: func(_ *personStruct, m map[string]interface{}) error {
 				if v, ok := m["foo"]; !ok {
 					return fmt.Errorf(`expected "foo" to be in globals, but not found`)
@@ -1012,12 +1010,12 @@ out = pn
 		},
 		{
 			name:        "read string map field",
-			codeSnippet: `foo = pn.Profile["email"]; out = pn`,
+			codeSnippet: `foo = pn.profile["email"]; out = pn`,
 			checkEqual:  getStringCompare("foo", "john@doe.me"),
 		},
 		{
 			name:        "add new map field",
-			codeSnippet: `pn.Profile["foo"] = "bar"; out = pn`,
+			codeSnippet: `pn.profile["foo"] = "bar"; out = pn`,
 			checkEqual: func(p *personStruct, _ map[string]interface{}) error {
 				if v, ok := p.Profile["foo"]; !ok {
 					return fmt.Errorf(`expected "foo" to be in Profile, but not found`)
@@ -1031,7 +1029,7 @@ out = pn
 		},
 		{
 			name:        "change map field",
-			codeSnippet: `pn.Profile["name"] = "Jane"; out = pn`,
+			codeSnippet: `pn.profile["name"] = "Jane"; out = pn`,
 			checkEqual: func(p *personStruct, _ map[string]interface{}) error {
 				if v, ok := p.Profile["name"]; !ok {
 					return fmt.Errorf(`expected "name" to be in Profile, but not found`)
@@ -1045,7 +1043,7 @@ out = pn
 		},
 		{
 			name:        "delete map field",
-			codeSnippet: `pn.Profile.pop("email"); out = pn`,
+			codeSnippet: `pn.profile.pop("email"); out = pn`,
 			checkEqual: func(p *personStruct, _ map[string]interface{}) error {
 				if _, ok := p.Profile["email"]; ok {
 					return fmt.Errorf(`expected "email" to be deleted from Profile, but still found`)
@@ -1055,19 +1053,19 @@ out = pn
 		},
 		{
 			name:        "delete non-exist map field",
-			codeSnippet: `pn.Profile.pop("name"); out = pn`,
+			codeSnippet: `pn.profile.pop("name"); out = pn`,
 			checkEqual:  noCheck,
 			wantErrExec: true,
 		},
 		{
 			name:        "read like javascript",
-			codeSnippet: `out = pn; val = pn.Profile.email`,
+			codeSnippet: `out = pn; val = pn.profile.email`,
 			checkEqual:  noCheck,
 			wantErrExec: true,
 		},
 		{
 			name:        "read nested map field",
-			codeSnippet: `out = pn; val = pn.NestedValues["foo"][1][2]`,
+			codeSnippet: `out = pn; val = pn.nested_values["foo"][1][2]`,
 			checkEqual: func(_ *personStruct, m map[string]interface{}) error {
 				if v, ok := m["val"]; !ok {
 					return fmt.Errorf(`expected "val" to be in globals, but not found`)
@@ -1081,7 +1079,7 @@ out = pn
 		},
 		{
 			name:        "change nested map field",
-			codeSnippet: `out = pn; pn.NestedValues["foo"][1][1] = 111`,
+			codeSnippet: `out = pn; pn.nested_values["foo"][1][1] = 111`,
 			checkEqual: func(p *personStruct, _ map[string]interface{}) error {
 				v := p.NestedValues["foo"][1][1]
 				if math.Abs(float64(v-111)) > 0.0001 {
@@ -1093,9 +1091,9 @@ out = pn
 		{
 			name: "append nested map field workaround",
 			codeSnippet: `
-nv = pn.NestedValues["foo"][1]
+nv = pn.nested_values["foo"][1]
 nv.append(123)
-pn.NestedValues["foo"][1] = nv
+pn.nested_values["foo"][1] = nv
 out = pn
 `,
 			checkEqual: func(p *personStruct, _ map[string]interface{}) error {
@@ -1108,18 +1106,18 @@ out = pn
 		},
 		{
 			name:        "set nested map field for wrong type",
-			codeSnippet: `pn.NestedValues["foo"][1] = [1, 2, 3]; out = pn`,
+			codeSnippet: `pn.nested_values["foo"][1] = [1, 2, 3]; out = pn`,
 			checkEqual:  noCheck,
 			wantErrExec: true,
 		},
 		{
 			name:        "read nested struct",
-			codeSnippet: `out = pn; val = pn.Parent.Name`,
+			codeSnippet: `out = pn; val = pn.parent.name`,
 			checkEqual:  getStringCompare("val", "Old John"),
 		},
 		{
 			name:        "change nested struct",
-			codeSnippet: `out = pn; pn.Parent.Name = "New John"`,
+			codeSnippet: `out = pn; pn.parent.name = "New John"`,
 			checkEqual: func(p *personStruct, _ map[string]interface{}) error {
 				if p.Parent.Name != "New John" {
 					return fmt.Errorf(`expected "Name" to be "New John", but got %v`, p.Parent.Name)
@@ -1129,7 +1127,7 @@ out = pn
 		},
 		{
 			name:        "read nested struct nil field",
-			codeSnippet: `out = pn; val = pn.Parent.Parent`,
+			codeSnippet: `out = pn; val = pn.parent.parent`,
 			checkEqual: func(_ *personStruct, m map[string]interface{}) error {
 				if v, ok := m["val"]; !ok {
 					return fmt.Errorf(`expected "val" to be in globals, but not found`)
@@ -1143,30 +1141,30 @@ out = pn
 		},
 		{
 			name:        "access to nil person method",
-			codeSnippet: `out = pn; val = pn.NilPerson.Nothing()`,
+			codeSnippet: `out = pn; val = pn.nil_person.Nothing()`,
 			checkEqual:  getStringCompare("val", "nothing"),
 		},
 		{
 			name:        "invalid access to nil person method",
-			codeSnippet: `out = pn; val = pn.NilPerson.Aging()`,
+			codeSnippet: `out = pn; val = pn.nil_person.Aging()`,
 			checkEqual:  noCheck,
 			wantErrExec: true,
 		},
 		{
 			name:        "invalid access to nil simple custom field",
-			codeSnippet: `out = pn; val = pn.NilCustomer.Name`,
+			codeSnippet: `out = pn; val = pn.nil_custom.name`,
 			checkEqual:  noCheck,
 			wantErrExec: true,
 		},
 		{
 			name:        "invalid access to nil person field",
-			codeSnippet: `out = pn; val = pn.NilPerson.Name`,
+			codeSnippet: `out = pn; val = pn.nil_person.name`,
 			checkEqual:  noCheck,
 			wantErrExec: true,
 		},
 		{
 			name:        "invalid access to nested struct nil field",
-			codeSnippet: `out = pn; val = pn.Parent.Parent.Name`,
+			codeSnippet: `out = pn; val = pn.parent.parent.name`,
 			checkEqual:  noCheck,
 			wantErrExec: true,
 		},
@@ -1174,15 +1172,15 @@ out = pn
 			name: "call interface method",
 			codeSnippet: `
 out = pn
-num = pn.MessageWriter.Write("Mahalo!")
+num = pn.message_writer.Write("Mahalo!")
 print("wrote", num, "bytes")
-val = pn.ReadMessage()
+val = pn.read_message()
 `,
 			checkEqual: getStringCompare("val", "Mahalo!"),
 		},
 		{
 			name:        "use original starlark dict",
-			codeSnippet: `out = pn; pn.StarDict["Hello"] = [42, 1000]; val = pn.StarDict["Hello"]`,
+			codeSnippet: `out = pn; pn.dict["Hello"] = [42, 1000]; val = pn.dict["Hello"]`,
 			checkEqual: func(p *personStruct, m map[string]interface{}) error {
 				// check exported value
 				if v, ok := m["val"]; !ok {
@@ -1212,17 +1210,6 @@ val = pn.ReadMessage()
 				} else if v.Type() != "list" {
 					return fmt.Errorf("got wrong value type: want: list, got: %s", v.Type())
 				}
-				return nil
-			},
-		},
-		{
-			name: "Test!!!!",
-			codeSnippet: `
-print(pn)
-print(dir(pn))
-out = pn
-`,
-			checkEqual: func(pn *personStruct, _ map[string]interface{}) error {
 				return nil
 			},
 		},
