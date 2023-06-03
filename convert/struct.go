@@ -46,23 +46,29 @@ type GoStruct struct {
 
 // Attr returns a starlark value that wraps the method or field with the given name.
 func (g *GoStruct) Attr(name string) (starlark.Value, error) {
-	method := g.v.MethodByName(name)
+	v := g.v
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+
+	// check for method first
+	method := v.MethodByName(name)
 	if method.Kind() != reflect.Invalid && method.CanInterface() {
 		return makeStarFn(name, method), nil
 	}
-	v := g.v
-	if g.v.Kind() == reflect.Ptr {
-		v = v.Elem()
-		method = g.v.MethodByName(name)
-		if method.Kind() != reflect.Invalid && method.CanInterface() {
-			return makeStarFn(name, method), nil
+
+	// check for field/property
+	field, ok := v.Type().FieldByName(name)
+	if ok {
+		if field.PkgPath != "" {
+			return nil, nil // Skip unexported field
 		}
-	}
-	field := v.FieldByName(name)
-	if field.Kind() != reflect.Invalid {
-		tag := v.Type().FieldByName(name).Tag.Get(g.tag)
+		tag := field.Tag.Get(g.tag)
 		if tag != "-" {
-			return toValue(field)
+			field := v.FieldByName(name)
+			if field.Kind() != reflect.Invalid {
+				return toValue(field)
+			}
 		}
 	}
 	return nil, nil
@@ -113,6 +119,9 @@ func (g *GoStruct) SetField(name string, val starlark.Value) error {
 	}
 	field, ok := v.Type().FieldByName(name)
 	if ok {
+		if field.PkgPath != "" {
+			return fmt.Errorf("%s is an unexported field", name) // Skip unexported field
+		}
 		tag := field.Tag.Get(g.tag)
 		if tag != "-" {
 			field := v.FieldByName(name)
