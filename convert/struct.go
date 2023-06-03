@@ -114,19 +114,22 @@ func (g *GoStruct) Attr(name string) (starlark.Value, error) {
 
 // AttrNames returns the list of all fields and methods on this struct.
 func (g *GoStruct) AttrNames() []string {
-	count := g.v.NumMethod()
-	if g.v.Kind() == reflect.Ptr {
-		elem := g.v.Elem()
+	// count the number of methods and fields
+	v := g.v
+	count := v.NumMethod()
+	if v.Kind() == reflect.Ptr {
+		elem := v.Elem()
 		count += elem.NumField() + elem.NumMethod()
 	} else {
-		count += g.v.NumField()
+		count += v.NumField()
 	}
 	names := make([]string, 0, count)
-	for i := 0; i < g.v.NumMethod(); i++ {
-		names = append(names, g.v.Type().Method(i).Name)
+
+	for i := 0; i < v.NumMethod(); i++ {
+		names = append(names, v.Type().Method(i).Name)
 	}
-	if g.v.Kind() == reflect.Ptr {
-		t := g.v.Elem().Type()
+	if v.Kind() == reflect.Ptr {
+		t := v.Elem().Type()
 		for i := 0; i < t.NumField(); i++ {
 			names = append(names, t.Field(i).Name)
 		}
@@ -134,8 +137,8 @@ func (g *GoStruct) AttrNames() []string {
 			names = append(names, t.Method(i).Name)
 		}
 	} else {
-		for i := 0; i < g.v.NumField(); i++ {
-			names = append(names, g.v.Type().Field(i).Name)
+		for i := 0; i < v.NumField(); i++ {
+			names = append(names, v.Type().Field(i).Name)
 		}
 	}
 	return names
