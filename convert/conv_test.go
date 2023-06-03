@@ -118,6 +118,7 @@ type contact struct {
 	age         int
 	PhoneNumber string `starlark:"phone"`
 	Secret      int    `starlark:"-"`
+	Empty       int    `starlark:""`
 }
 
 func (c contact) Foo()  {}
@@ -133,7 +134,7 @@ func TestStructAttrNames(t *testing.T) {
 	c := &contact{}
 	s := NewStruct(c)
 	names := s.AttrNames()
-	expected := []string{"Name", "Foo", "phone", "Bar"}
+	expected := []string{"Name", "Foo", "phone", "Empty", "Bar"}
 	for _, s := range names {
 		if !contains(expected, s) {
 			t.Errorf("output contains extra value %q", s)
